@@ -30,7 +30,7 @@ services:
       - key: PORT
         value: 4000
 
-  - type: static
+  - type: static_site
     name: cvtc-wallet-frontend
     buildCommand: npm run build
     publishPath: dist
