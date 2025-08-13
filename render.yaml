@@ -8,24 +8,3 @@ services:
     ports:
       - 4000
     rootDir: backend
-    envVars:
-      - key: JWT_SECRET
-        sync: false
-      - key: ADMIN_TOKEN
-        sync: false
-      - key: ADMIN_PASSWORD_HASH
-        sync: false
-      - key: OPERATOR_PRIVATE_KEY
-        sync: false
-      - key: CVTC_ONBOARDING_CONTRACT_ADDRESS
-        sync: false
-      - key: BNB_RPC_URL
-        sync: false
-      - key: PRIVY_APP_ID
-        sync: false
-      - key: PRIVY_APP_SECRET
-        sync: false
-      - key: BREVO_API_KEY
-        sync: false
-      - key: PORT
-        value: 4000
