@@ -1,0 +1,3 @@
+# Fichiers de log à ignorer
+backend/combined.log
+backend/error.log
