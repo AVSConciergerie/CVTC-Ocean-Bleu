@@ -32,3 +32,4 @@ Thumbs.db
 # Other common ignores
 *.swp
 *.swo
+backend/.env
