@@ -93,7 +93,7 @@ async function startServer() {
                 });
             }
             
-            const whitelist = await userRepo.getWhitelistedUsers();
+            const whitelist = await userRepo.getUsersByStatus('whitelist');
             res.json({ message: "Address whitelisted", whitelist });
         } catch (e) {
             console.error(e);
@@ -104,7 +104,7 @@ async function startServer() {
     app.get("/api/admin/whitelist", requireAdminAuth, async (req, res) => {
         try {
             const userRepo = userRepository(req.app.locals.db);
-            const whitelist = await userRepo.getWhitelistedUsers();
+            const whitelist = await userRepo.getUsersByStatus('whitelist');
             res.json({ whitelist });
         } catch (e) {
             console.error(e);
@@ -140,7 +140,7 @@ async function startServer() {
                 }
             }
 
-            const whitelist = await userRepo.getWhitelistedUsers();
+            const whitelist = await userRepo.getUsersByStatus('whitelist');
             res.json({ message: `${addresses.length} addresses processed.`, whitelist });
 
         } catch (e) {
