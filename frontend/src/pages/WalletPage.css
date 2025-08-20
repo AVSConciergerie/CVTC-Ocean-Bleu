@@ -1,0 +1,105 @@
+
+.wallet-page-container {
+  font-family: 'Outfit', sans-serif;
+  margin: 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, #00111a, #001f3f);
+  color: #d3faff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+}
+
+.wallet-page-container h1 {
+  margin-bottom: 1rem;
+  font-size: 2rem;
+}
+
+.wallet-page-container form {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
+  max-width: 400px;
+  width: 100%;
+}
+
+.wallet-page-container label {
+  display: block;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.wallet-page-container input {
+  width: 100%;
+  padding: 0.6rem;
+  margin-top: 0.3rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #002a3f;
+  color: #d3faff;
+  box-sizing: border-box;
+}
+
+.wallet-page-container button {
+  margin-top: 1rem;
+  padding: 0.8rem 1.5rem;
+  background: #00faff;
+  color: #00111a;
+  border: none;
+  border-radius: 2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-page-container button:disabled {
+  background: #008b8b;
+  cursor: not-allowed;
+}
+
+.wallet-page-container button:hover:not(:disabled) {
+  background: #00c2c2;
+}
+
+.success-msg {
+  margin-top: 1.5rem;
+  background: #004d4d;
+  color: #00faff;
+  padding: 1rem;
+  border-radius: 1rem;
+  box-shadow: 0 0 10px #00faff55;
+  max-width: 400px;
+}
+
+.error-msg {
+  background: #4a0000;
+  color: #ffb3b3;
+  padding: 1rem;
+  margin-top: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 0 10px #ff000055;
+  max-width: 400px;
+}
+
+.spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #00111a;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+  animation: spin 1s linear infinite;
+  margin-left: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

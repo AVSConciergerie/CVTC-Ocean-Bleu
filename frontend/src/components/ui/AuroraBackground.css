@@ -1,0 +1,49 @@
+.aurora-background-container {
+  position: fixed; /* Changé en fixed pour couvrir tout l'écran */
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  z-index: -1; /* Placé en arrière-plan */
+}
+
+.aurora-content-scroll-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.aurora-background-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  filter: blur(100px);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Utilisation des variables CSS pour les couleurs de l'aurore */
+.aurora-light-1, .aurora-light-2, .aurora-light-3, .aurora-light-4, .aurora-light-5 {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: aurora-pulse 10s infinite alternate ease-in-out;
+  transition: background-color 0.5s ease;
+}
+
+.aurora-light-1 { background: var(--color-aurora-1); width: 400px; height: 400px; top: 10%; left: 10%; animation-delay: 0s; }
+.aurora-light-2 { background: var(--color-aurora-2); width: 500px; height: 500px; top: 50%; left: 60%; animation-delay: 2s; }
+.aurora-light-3 { background: var(--color-aurora-3); width: 300px; height: 300px; top: 20%; left: 80%; animation-delay: 4s; }
+.aurora-light-4 { background: var(--color-aurora-4); width: 600px; height: 600px; top: 70%; left: 20%; animation-delay: 6s; }
+.aurora-light-5 { background: var(--color-aurora-5); width: 450px; height: 450px; top: 40%; left: 40%; animation-delay: 8s; }
+
+@keyframes aurora-pulse {
+  0% { transform: scale(1) translate(0, 0); opacity: 0.6; }
+  50% { transform: scale(1.2) translate(20px, -20px); opacity: 0.8; }
+  100% { transform: scale(1) translate(0, 0); opacity: 0.6; }
+}

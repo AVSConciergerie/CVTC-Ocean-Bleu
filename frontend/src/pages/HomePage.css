@@ -1,0 +1,54 @@
+/* Styles simplifiés pour HomePage */
+
+/* La classe .onboarding-container est réutilisée depuis OnboardingPage.css pour la cohérence */
+/* Si des styles spécifiques à HomePage sont nécessaires, ajoutez-les ici. */
+
+.main-container header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+}
+
+
+
+.link-login {
+    background: none;
+    border: 1px solid #00faff;
+    color: #00faff;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.link-login:hover {
+    background: rgba(0, 255, 255, 0.1);
+}
+
+.main-container main {
+    text-align: center;
+    padding: 2rem;
+}
+
+.main-container .slogan {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+}
+
+.main-container .buttons button {
+    margin: 0.5rem;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    background: #004d4d;
+    color: #d3faff;
+    transition: background 0.3s ease;
+}
+
+.main-container .buttons button:hover {
+    background: #008b8b;
+}

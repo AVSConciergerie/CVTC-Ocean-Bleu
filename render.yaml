@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: cvtc-wallet-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    ports:
+      - 4000
+    rootDir: backend
