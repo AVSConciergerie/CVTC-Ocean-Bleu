@@ -48,7 +48,7 @@ async function startServer() {
 
       res.cookie("admin_token", process.env.ADMIN_TOKEN, {
         httpOnly: true,
-        secure: true,
+        secure: false,
         sameSite: "strict",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
@@ -165,7 +165,7 @@ async function startServer() {
     app.post("/api/admin/logout", requireAdminAuth, (req, res) => {
       res.clearCookie("admin_token", {
         httpOnly: true,
-        secure: true,
+        secure: false,
         sameSite: "strict",
       });
       res.json({ message: "Logout successful" });
