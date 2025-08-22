@@ -1,13 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import OnboardingModal from '../components/OnboardingModal';
+import { createBiconomySmartAccount } from '../services/biconomyService';
 
 export default function DashboardPage() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [biconomySmartAccount, setBiconomySmartAccount] = useState(null);
   const { user } = usePrivy();
+  const { wallets } = useWallets();
+
+  useEffect(() => {
+    const initializeBiconomy = async () => {
+      const embeddedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
+      
+      if (embeddedWallet) {
+        try {
+          const privyClient = await embeddedWallet.getWalletClient();
+          const smartAccount = await createBiconomySmartAccount(privyClient);
+          setBiconomySmartAccount(smartAccount);
+        } catch (error) {
+          console.error("Erreur lors de l'initialisation de Biconomy:", error);
+        }
+      }
+    };
+
+    if (user && wallets.length > 0) {
+      initializeBiconomy();
+    }
+  }, [user, wallets]);
 
   useEffect(() => {
     if (user && user.createdAt) {
@@ -35,7 +58,6 @@ export default function DashboardPage() {
         localStorage.setItem('onboardingStatus', 'accepted');
       } catch (error) {
         console.error("Erreur lors de l'appel API d'onboarding:", error);
-        // En cas d'erreur, on ne sauvegarde pas le statut, pour pouvoir réessayer
       }
     }
     setShowOnboardingModal(false);
@@ -43,7 +65,6 @@ export default function DashboardPage() {
 
   const handleDeclineOnboarding = () => {
     console.log("Onboarding refusé");
-    // On ne sauvegarde rien, le pop-up pourra réapparaître
     setShowOnboardingModal(false);
   };
 

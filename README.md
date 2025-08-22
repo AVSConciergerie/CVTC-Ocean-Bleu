@@ -105,3 +105,96 @@ Cette session a été axée sur la construction de l'interface utilisateur princ
 ### État du Projet
 
 L'application est maintenant beaucoup plus robuste et fonctionnelle. Le socle de l'interface utilisateur est en place, les principaux bugs sont résolus, et des fonctionnalités clés ont été implémentées, nous rapprochant d'une version alpha utilisable.
+
+---
+
+## Journal de Développement - Session du 20/08/2025
+
+### Objectif : Mise en place d'un environnement de développement Hardhat
+
+Mise en place d'un environnement de développement local pour les smart contracts avec Hardhat afin de remplacer Remix IDE et de permettre la sauvegarde et la gestion de version des contrats.
+
+**Difficultés rencontrées :**
+
+1.  **Incompatibilité avec Hardhat v3 :** La dernière version de Hardhat (v3) et sa configuration moderne (ESM, `"type": "module"`) ont provoqué de nombreuses erreurs de compatibilité avec l'écosystème de plugins (`hardhat-toolbox`, `chai`, etc.), rendant l'environnement instable.
+2.  **Erreur de sécurité :** Lors de la configuration du déploiement, une clé privée a été accidentellement exposée dans les logs de commande.
+
+**Solutions et décisions :**
+
+1.  **Rétrogradation vers Hardhat v2 :** Pour garantir la stabilité, nous avons abandonné Hardhat v3 et sommes revenus à une configuration stable et éprouvée avec **Hardhat v2.19.0** et la **`toolbox` v2.0.0**. Cela a résolu tous les problèmes de dépendances.
+2.  **Nouvelle procédure de sécurité :** Pour éviter toute nouvelle fuite de données sensibles, une nouvelle politique a été adoptée : les fichiers contenant des secrets (comme `.env`) ne seront plus jamais lus ni écrits directement par l'assistant. Les ajouts se feront via des commandes sécurisées et les modifications complexes seront effectuées manuellement par l'utilisateur sur la base d'instructions claires.
+
+### Objectif : Déploiement sur BSC Testnet
+
+Configuration du projet pour déployer et vérifier des contrats sur le Testnet de la Binance Smart Chain.
+
+**Actions réalisées :**
+
+1.  **Configuration de `hardhat.config.ts` :** Ajout du réseau `bscTestnet` et de la configuration `etherscan` pour la vérification.
+2.  **Gestion des secrets :** Utilisation d'un fichier `.env` pour stocker la `PRIVATE_KEY` et la `BSCSCAN_API_KEY`.
+3.  **Déploiement :** Le contrat `Lock.sol` a été déployé avec succès sur le BSC Testnet.
+4.  **Vérification du contrat :** Le processus de vérification est **en pause**. Un problème de connexion au compte BscScan/Etherscan empêche l'obtention de la clé API nécessaire. Cette étape sera reprise ultérieurement.
+
+**Statut :** L'environnement de développement est fonctionnel et le déploiement sur un réseau public est validé.
+
+---
+
+## Journal de Développement - Session du 21/08/2025
+
+### Objectif : Intégration de Biconomy Paymaster
+
+Lancement des travaux pour intégrer Biconomy afin de permettre des transactions sans frais de gaz ("gasless") pour les utilisateurs.
+
+**Actions réalisées :**
+
+1.  **Clarification de l'objectif :** Il a été confirmé que le but est bien de sponsoriser les frais de transaction des utilisateurs via un Paymaster, en particulier pour les actions liées au token CVTC et aux modules du dashboard.
+
+2.  **Configuration Biconomy :** L'utilisateur a créé un projet sur le dashboard de Biconomy pour le réseau **BSC Testnet** et a récupéré les deux URLs nécessaires au fonctionnement (Bundler et Paymaster).
+    *   Ces URLs ont été stockées de manière sécurisée dans le fichier `.env`.
+
+3.  **Installation du SDK Biconomy :**
+    *   Une première tentative d'installation a révélé que le paquet `@biconomy/smart-account` était obsolète (déprécié).
+    *   Après recherche, le paquet obsolète a été désinstallé et remplacé par la nouvelle suite de paquets modulaires et à jour : `@biconomy/account`, `@biconomy/paymaster`, `@biconomy/bundler`, et `@biconomy/common`.
+    *   Le projet `frontend` est maintenant sur une base technique saine pour commencer l'intégration.
+
+**Prochaines Étapes Claires :**
+
+1.  Créer un service `biconomyService.js` dans le dossier `frontend/src/services`.
+2.  Implémenter la logique d'initialisation du "Smart Account" Biconomy dans ce service.
+3.  Intégrer le service dans le `DashboardPage.jsx` pour connecter l'utilisateur à Biconomy.
+4.  Ajouter une transaction de test pour valider l'intégration de bout en bout.
+
+---
+
+## Journal de Développement - Session du 21/08/2025 (Partie 2) & Pivot Stratégique
+
+### Objectif : Finaliser l'intégration de Biconomy
+
+Cette session visait à finaliser et tester l'intégration de Biconomy Paymaster.
+
+**Actions réalisées :**
+
+1.  **Création d'un script de test :** Un script Node.js (`test-biconomy.js`) a été créé dans le `backend` pour tester la chaîne de sponsoring de Biconomy de manière isolée, sans dépendre de l'interface utilisateur.
+2.  **Tests et Débogage :** Le script a permis de confirmer que la configuration locale (clés API, etc.) était correcte et que la communication avec les services Biconomy était établie.
+3.  **Identification du Problème Final :** Le script a échoué avec une erreur `520` provenant directement du Paymaster de Biconomy, indiquant un refus de sponsoriser la transaction. La cause la plus probable est un manque de fonds sur le Paymaster sur le tableau de bord de Biconomy.
+
+**Blocage et Décision de Pivot :**
+
+1.  **Plateforme Biconomy Inaccessible :** Au moment de vouloir recharger le Paymaster, la plateforme Biconomy est devenue instable, affichant une erreur "Error fetching projects" qui a empêché toute action.
+2.  **Confirmation de l'Instabilité :** Une recherche a révélé plusieurs rapports d'incidents et de pannes récents sur les services de Biconomy.
+3.  **Décision Stratégique :** Face à l'instabilité avérée de la plateforme Biconomy, et pour ne pas risquer la fiabilité du projet, la décision a été prise d'abandonner Biconomy et de migrer vers un fournisseur d'infrastructure plus stable.
+
+### Objectif : Sélection d'un nouveau fournisseur d'Abstraction de Compte
+
+**Actions réalisées :**
+
+1.  **Recherche de Marché :** Une analyse des concurrents a été menée, évaluant Alchemy, Pimlico, ZeroDev, et Stackup sur des critères de stabilité, de réputation et de facilité d'intégration.
+2.  **Recommandation et Choix :** **ZeroDev** a été sélectionné comme le meilleur remplaçant. Ce choix est motivé par deux facteurs clés :
+    *   **Stabilité et Viabilité :** ZeroDev a été racheté par Offchain Labs (l'équipe derrière Arbitrum), ce qui garantit un soutien solide.
+    *   **Synergie d'Écosystème :** ZeroDev a un partenariat officiel avec **Privy**, notre fournisseur de portefeuille, ce qui devrait grandement simplifier l'intégration technique.
+
+**Prochaines Étapes Claires :**
+
+1.  **Sauvegarde :** Le projet actuel sera sauvegardé dans un dossier `CVTC-Ocean-Bleu_Biconomy-Backup`.
+2.  **Redémarrage :** L'utilisateur va redémarrer son ordinateur pour résoudre les problèmes d'environnement local (cache, etc.).
+3.  **Nouvelle Intégration :** Au redémarrage, nous commencerons l'intégration de **ZeroDev** dans le projet principal.

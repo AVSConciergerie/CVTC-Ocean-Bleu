@@ -1,8 +1,30 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 
+// Use require for dotenv for robustness in ts-node environments
+require('dotenv').config();
+
 const config: HardhatUserConfig = {
-  solidity: "0.8.24",
+  solidity: {
+    version: "0.8.24",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
+  networks: {
+    bscTestnet: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+      chainId: 97,
+      accounts: [process.env.PRIVATE_KEY || ""],
+    },
+  },
+  etherscan: {
+    // Use the simpler, direct apiKey format
+    apiKey: process.env.BSCSCAN_API_KEY || ""
+  },
 };
 
 export default config;
