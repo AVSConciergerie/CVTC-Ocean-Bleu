@@ -9,6 +9,7 @@ import { startScheduler } from './services/onboardingScheduler.js';
 import setupDatabase from './database.js';
 import { userRepository } from './repositories/userRepository.js';
 import onboardingRoutes from './routes/users.js';
+import moneriumRoutes from './routes/monerium.js';
 import multer from 'multer';
 
 dotenv.config();
@@ -27,6 +28,7 @@ async function startServer() {
 
     // --- Routes
     app.use('/api/onboarding', onboardingRoutes);
+    app.use('/api/monerium', moneriumRoutes);
 
     // --- Auth Middleware
     function requireAdminAuth(req, res, next) {

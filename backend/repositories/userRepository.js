@@ -47,5 +47,18 @@ export const userRepository = (db) => ({
 
     async updateUserStatus(wallet_address, status) {
         return await db.run('UPDATE users SET status = ? WHERE wallet_address = ?', status, wallet_address);
+    },
+
+    async updateUserMoneriumDetails(wallet_address, { profileId, accessToken, refreshToken, tokenExpiresAt }) {
+        const query = `
+            UPDATE users 
+            SET 
+                monerium_profile_id = ?, 
+                monerium_access_token = ?, 
+                monerium_refresh_token = ?, 
+                monerium_token_expires_at = ? 
+            WHERE wallet_address = ?
+        `;
+        return await db.run(query, [profileId, accessToken, refreshToken, tokenExpiresAt, wallet_address]);
     }
 });

@@ -3,32 +3,38 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import OnboardingModal from '../components/OnboardingModal';
-import { createBiconomySmartAccount } from '../services/biconomyService';
+import { createSmartAccount } from '../services/accountService';
 
 export default function DashboardPage() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  const [biconomySmartAccount, setBiconomySmartAccount] = useState(null);
+  const [smartAccount, setSmartAccount] = useState(null);
+  const [smartAccountClient, setSmartAccountClient] = useState(null);
   const { user } = usePrivy();
   const { wallets } = useWallets();
 
   useEffect(() => {
-    const initializeBiconomy = async () => {
+    const initializeSmartAccount = async () => {
       const embeddedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
       
       if (embeddedWallet) {
         try {
-          const privyClient = await embeddedWallet.getWalletClient();
-          const smartAccount = await createBiconomySmartAccount(privyClient);
-          setBiconomySmartAccount(smartAccount);
+          // Ensure the wallet is on BSC Testnet (chainId 97)
+          if (embeddedWallet.chainId !== 'eip155:97') {
+            await embeddedWallet.switchChain(97);
+          }
+          
+          const { smartAccount, smartAccountClient } = await createSmartAccount(embeddedWallet);
+          setSmartAccount(smartAccount);
+          setSmartAccountClient(smartAccountClient);
         } catch (error) {
-          console.error("Erreur lors de l'initialisation de Biconomy:", error);
+          console.error("Erreur lors de l'initialisation du Smart Account:", error);
         }
       }
     };
 
     if (user && wallets.length > 0) {
-      initializeBiconomy();
+      initializeSmartAccount();
     }
   }, [user, wallets]);
 
@@ -92,6 +98,39 @@ export default function DashboardPage() {
             <p className="mt-4 text-text-secondary">
               Considérez cette plateforme comme votre tableau de bord personnel. C'est ici que vous gérez votre portefeuille, que vous interagissez avec notre écosystème et que vous découvrez comment le numérique peut enrichir votre quotidien. Explorez, expérimentez, et surtout, sentez-vous à l'aise.
             </p>
+
+            <div className="mt-6 p-4 border border-gray-700 rounded-lg bg-gray-800/30">
+              <h3 className="text-lg font-semibold text-heading">Votre Compte Intelligent</h3>
+              {smartAccount ? (
+                <p className="mt-2 text-text-primary font-mono bg-gray-900 p-3 rounded text-sm break-all">
+                  {smartAccount.address}
+                </p>
+              ) : (
+                <p className="mt-2 text-text-secondary">
+                  Initialisation du compte intelligent...
+                </p>
+              )}
+            </div>
+
+            {/* Monerium Connection */}
+            <div className="mt-6 p-4 border border-gray-700 rounded-lg bg-gray-800/30">
+              <h3 className="text-lg font-semibold text-heading">Connexion Bancaire (IBAN)</h3>
+              <p className="mt-2 text-text-primary">
+                Connectez votre compte Monerium pour lier un IBAN à votre portefeuille. Cela vous permettra de transférer des fonds entre votre compte bancaire et votre portefeuille crypto.
+              </p>
+              {user?.wallet?.address ? (
+                <a 
+                  href={`http://localhost:4000/api/monerium/connect?walletAddress=${user.wallet.address}`}
+                  className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                >
+                  Connecter avec Monerium
+                </a>
+              ) : (
+                <p className="mt-4 text-text-secondary">
+                  Votre adresse de portefeuille est nécessaire pour la connexion.
+                </p>
+              )}
+            </div>
           </div>
         </main>
       </div>

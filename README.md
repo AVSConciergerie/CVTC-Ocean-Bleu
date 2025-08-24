@@ -198,3 +198,153 @@ Cette session visait à finaliser et tester l'intégration de Biconomy Paymaster
 1.  **Sauvegarde :** Le projet actuel sera sauvegardé dans un dossier `CVTC-Ocean-Bleu_Biconomy-Backup`.
 2.  **Redémarrage :** L'utilisateur va redémarrer son ordinateur pour résoudre les problèmes d'environnement local (cache, etc.).
 3.  **Nouvelle Intégration :** Au redémarrage, nous commencerons l'intégration de **ZeroDev** dans le projet principal.
+
+---
+
+## Journal de Développement - Session du 22/08/2025
+
+### Objectif : Standardisation des Composants d'Interface
+
+Afin d'accélérer le développement et de garantir une cohérence visuelle, un standard pour les composants de type "carte" a été défini.
+
+**Actions réalisées :**
+
+1.  **Analyse de l'Existant :** Le composant `P2PTransferPage.jsx` a été analysé pour servir de référence en matière de style et de structure.
+2.  **Création d'un Prompt Modèle :** Un prompt détaillé a été rédigé pour guider la génération de nouvelles cartes par l'IA. Ce prompt inclut les règles de style (classes Tailwind), la structure JSX et les variables CSS à utiliser.
+3.  **Sauvegarde du Modèle :** Le prompt a été sauvegardé dans le fichier `prompt_card_template.txt` à la racine du projet, pour une réutilisation facile.
+
+**Statut :** Le projet dispose maintenant d'un processus clair pour la création de nouveaux composants d'interface, assurant une meilleure maintenabilité et une expérience utilisateur cohérente.
+
+---
+
+## Journal de Développement - Session du 22/08/2025 (Partie 2)
+
+### Objectif : Mise en place d'une infrastructure d'abstraction de compte auto-hébergée
+
+Suite à une analyse approfondie des modèles économiques des fournisseurs de services d'abstraction de compte, une décision stratégique a été prise pour garantir une indépendance et une maîtrise des coûts maximales.
+
+**Actions réalisées :**
+
+1.  **Abandon des Solutions Tierces :** Les solutions comme ZeroDev ou Pimlico ont été écartées pour éviter la dépendance à un tiers et les modèles de commission.
+2.  **Adoption d'une Stratégie d'Auto-Hébergement :** Le projet s'oriente vers une infrastructure 100% open-source, hébergée et contrôlée en interne.
+3.  **Installation du Bundler :** Le bundler open-source **Skandha** a été cloné et ses dépendances ont été installées.
+4.  **Configuration du Bundler :** Le fichier de configuration de Skandha a été modifié pour cibler le **BSC Testnet**. Une nouvelle clé privée a été générée pour le compte du "relayer".
+
+**Action Requise / Prochaine Étape :**
+
+*   **Financement du Relayer :** Le compte du relayer doit être approvisionné en tBNB (tokens de test du BSC Testnet) pour pouvoir payer les frais de transaction des lots (`bundles`). L'utilisateur s'en charge.
+*   **Démarrage du Bundler :** Une fois le compte approvisionné, le bundler pourra être démarré localement pour les premiers tests.
+
+---
+
+## Journal de Développement - Session du 22/08/2025 (Partie 3)
+
+### Objectif : Planification de l'intégration d'un service On/Off-Ramp (Monerium)
+
+Recherche et planification de l'intégration d'une solution pour permettre les virements bancaires (euros) depuis et vers les portefeuilles des utilisateurs.
+
+**Actions réalisées :**
+
+1.  **Analyse du besoin :** Confirmation que l'intégration doit être multi-utilisateurs. Chaque utilisateur de la plateforme doit pouvoir connecter son propre compte Monerium.
+2.  **Recherche & Sélection :** Le service **Monerium** a été identifié comme le meilleur candidat, étant un Établissement de Monnaie Électronique (EMI) réglementé en Europe et spécialisé dans la fourniture d'IBAN pour les portefeuilles crypto.
+3.  **Analyse de l'Expérience Utilisateur (UX) :** Il a été confirmé que, dû aux obligations réglementaires (KYC/AML), un nouvel utilisateur devra être redirigé vers le site de Monerium pour créer un compte et compléter une vérification d'identité. C'est une étape unique mais nécessaire.
+4.  **Analyse Technique :** L'intégration se fera via le protocole standard **OAuth 2.0**. Monerium propose un environnement de test (Sandbox) et un SDK pour faciliter le développement.
+
+**État et Prochaines Étapes :**
+
+Le projet est en pause, en attente de la configuration du compte développeur Monerium par l'utilisateur.
+
+*   **Action Requise par l'Utilisateur (C.) :** Créer un compte sur le portail développeur de **Monerium (Sandbox)**.
+*   **Configuration Clé :** Lors de la création de l'application sur le portail Monerium, l'URL de redirection (`Redirect URI`) suivante doit être impérativement utilisée : `http://localhost:5173/auth/monerium/callback`.
+*   **Objectif Final :** Récupérer le `client_id` de l'application pour lancer l'intégration technique.
+---
+
+## Journal de Développement - Session du 23/08/2025
+
+### Objectif : Configuration de l'application Monerium pour l'intégration OAuth 2.0
+
+Reprise des travaux sur l'intégration du service On/Off-Ramp Monerium.
+
+**Actions réalisées :**
+
+1.  **Création du Compte Développeur :** L'utilisateur a initié la création du compte sur le portail développeur de Monerium (Sandbox).
+2.  **Décision Stratégique (KYB) :** Il a été décidé de créer le compte en tant qu'**"Entreprise"**, car "CVTC: Ocean Bleu" agit en tant que plateforme fournissant un service, et non en tant que simple utilisateur personnel.
+3.  **Configuration de l'Application OAuth :** Le processus de création d'une nouvelle application a été entamé sur le portail. Les paramètres suivants ont été définis pour l'environnement de développement :
+    *   **URL de redirection (Redirect URI) :** `http://localhost:5173/auth/monerium/callback`
+    *   **URLs légales :** Des placeholders pour la politique de confidentialité et les conditions d'utilisation ont été définis (`/privacy-policy`, `/terms-of-service`).
+4.  **Création des Contenus Légaux (MVP) :** Pour supporter la configuration, des fichiers `privacy-policy.md` et `terms-of-service.md` ont été créés à la racine du projet avec un contenu de base.
+
+**État et Prochaines Étapes :**
+
+*   **Action Requise par l'Utilisateur (C.) :** Valider la création de l'application sur le portail Monerium.
+*   **Objectif Final :** Récupérer le **`Client ID`** et le **`Client Secret`** pour pouvoir commencer le développement de l'intégration technique dans le backend.
+---
+
+## Journal de Développement - Session du 23/08/2025 (Partie 2)
+
+### Objectif : Implémentation de bout en bout du flux de connexion Monerium
+
+Finalisation de l'implémentation technique pour permettre aux utilisateurs de connecter leur compte Monerium à la plateforme.
+
+**Actions réalisées (Backend) :**
+
+1.  **Modification du Schéma de DB :** Le fichier `database.js` a été mis à jour pour inclure des colonnes dédiées au stockage des informations Monerium (`monerium_profile_id`, `monerium_access_token`, etc.). La base de données a été recréée pour appliquer ces changements.
+2.  **Implémentation du Flux OAuth 2.0 :**
+    *   Le fichier `routes/monerium.js` a été créé et contient maintenant la logique complète du "Authorization Code Flow with PKCE".
+    *   La route `/connect` gère la redirection sécurisée vers Monerium, en incluant un `state` pour la protection CSRF et le suivi de l'utilisateur.
+    *   La route `/callback` gère le retour de Monerium, l'échange du code d'autorisation contre un `access_token`, la récupération du profil utilisateur, et le stockage des informations en base de données.
+3.  **Mise à jour des Dépendances :** Le paquet `node-fetch` a été ajouté au `backend` pour permettre les appels API serveur-à-serveur.
+4.  **Mise à jour du Repository :** La fonction `updateUserMoneriumDetails` a été ajoutée à `userRepository.js` pour gérer l'écriture des nouvelles informations dans la base de données.
+
+**Actions réalisées (Frontend) :**
+
+1.  **Ajout du Point d'Entrée :** Un nouveau composant visuel a été ajouté à la page `DashboardPage.jsx`.
+2.  **Bouton de Connexion :** Ce composant inclut un bouton "Connecter avec Monerium" qui redirige l'utilisateur vers la route de connexion du backend (`/api/monerium/connect`), en passant l'adresse de son portefeuille en paramètre.
+
+**Changement de Configuration Requis :**
+
+*   L'URL de redirection (`Redirect URI`) sur le portail développeur de Monerium a dû être modifiée pour pointer vers le backend : `http://localhost:4000/api/monerium/callback`.
+
+**État et Prochaines Étapes :**
+
+*   **Code Terminé :** L'implémentation de la fonctionnalité est terminée.
+*   **Action Requise par l'Utilisateur (C.) :**
+    1.  Confirmer que l'URL de redirection a bien été mise à jour sur le portail Monerium.
+    2.  Redémarrer le serveur backend pour charger toutes les modifications.
+    3.  Tester le flux de connexion de bout en bout depuis le tableau de bord.
+
+---
+
+## Journal de Développement - Session du 23/08/2025 (Partie 3)
+
+### Objectif : Résoudre l'incompatibilité de l'environnement Node.js pour démarrer le bundler Skandha
+
+**Problème Identifié :**
+Le projet Skandha, tel que conçu, utilise des fonctionnalités de résolution de modules ES (par exemple, l'import de dossiers) qui sont obsolètes ou ont été supprimées dans les versions récentes de Node.js (comme la v22 utilisée actuellement). Cela provoque des erreurs en cascade de type `ERR_UNSUPPORTED_DIR_IMPORT` et `ERR_MODULE_NOT_FOUND`, empêchant le démarrage du bundler. Les tentatives de "patching" manuel du code compilé se sont avérées inefficaces, complexes et risquées pour la stabilité du projet.
+
+**Plan d'Action Stratégique :**
+Face à ce blocage, une nouvelle approche a été décidée pour garantir un environnement de développement stable et fonctionnel.
+
+1.  **Consignation :** Documentation du plan d'action dans ce README avant exécution.
+2.  **Nettoyage Complet :** Exécution de la commande `yarn clean` à la racine du projet `skandha` pour supprimer tous les dossiers `lib` (code compilé) et `node_modules`. Cette étape est cruciale pour éliminer tout risque de conflit avec d'anciens fichiers.
+3.  **Changement d'Environnement :** Utilisation de `nvm` (Node Version Manager) pour passer à **Node.js v18**. Cette version est compatible avec l'architecture du projet Skandha.
+4.  **Réinstallation Propre :** Lancement de `yarn install` pour télécharger et installer toutes les dépendances, en s'assurant de leur compatibilité avec Node.js v18.
+5.  **Reconstruction Complète :** Lancement de `yarn build` pour recompiler l'intégralité du code source du projet dans l'environnement nouvellement configuré.
+6.  **Validation :** Tentative de démarrage du bundler en mode `standalone` pour valider la résolution du problème.
+
+---
+
+## Journal de Développement - Session du 23/08/2025 (Partie 4)
+
+### Objectif : Résoudre le blocage du démarrage du bundler.
+
+**Décision Stratégique (Pivot) :**
+Face aux incompatibilités persistantes entre le bundler auto-hébergé Skandha et l'environnement Node.js v22, et pour éviter les risques liés à la modification de l'environnement système (downgrade de Node.js), une décision de pivot a été prise. Le projet abandonne la solution Skandha au profit du **service de bundler hébergé par Pimlico**.
+
+**Justification :**
+Cette approche élimine immédiatement tous les problèmes de compatibilité et de dépendances, permettant de se concentrer sur l'intégration fonctionnelle. C'est une étape stratégique pour débloquer le développement, avec la possibilité de revenir à une solution auto-hébergée plus tard.
+
+**Prochaines Étapes :**
+1.  **Action Requise par l'Utilisateur (C.) :** Créer un compte sur le dashboard de Pimlico et générer une clé API pour le réseau BSC Testnet.
+2.  **Pause et Nettoyage :** Une fois la clé obtenue, une pause sera observée pour nettoyer l'environnement de développement local et éliminer tout "zombie build" potentiel issu des tentatives précédentes.
+3.  **Intégration :** Intégrer la clé API de Pimlico dans l'application.
