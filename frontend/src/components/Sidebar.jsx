@@ -2,10 +2,10 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
 import { ChevronFirst, ChevronLast, MoreVertical, Info, Sun, Moon, LogOut, LayoutGrid, LifeBuoy, Home, Copy } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
+
 
 export default function Sidebar({ expanded, setExpanded }) {
-  const { theme, toggleTheme } = useTheme();
+  
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = usePrivy();
@@ -87,30 +87,7 @@ export default function Sidebar({ expanded, setExpanded }) {
         </div>
 
         <ul className="px-3 pb-3">
-          <li className={`
-              relative flex items-center py-2 px-3 my-1
-              font-medium rounded-md cursor-pointer
-              transition-colors group sidebar-link
-            `}
-            onClick={toggleTheme}
-          >
-            <div className="transition-transform group-hover:scale-110 group-hover:drop-shadow-[0_0_3px_var(--color-accent)]">
-              {theme === 'light' ? <Sun size={20} /> : <Moon size={20} />}
-            </div>
-            <span className={`overflow-hidden transition-all ${expanded ? 'w-52 ml-3' : 'w-0'}`}>
-              Mode
-            </span>
-            {!expanded && (
-                <div className={`
-                  absolute left-full rounded-md px-2 py-1 ml-6
-                  bg-card-bg text-text-primary border border-card-border text-sm
-                  invisible opacity-20 -translate-x-3 transition-all
-                  group-hover:visible group-hover:opacity-100 group-hover:translate-x-0
-                `}>
-                  Mode
-                </div>
-              )}
-          </li>
+          
           <SidebarItem item={{ icon: <LogOut size={20} />, text: 'Déconnexion', onClick: handleLogout }} expanded={expanded} />
         </ul>
 

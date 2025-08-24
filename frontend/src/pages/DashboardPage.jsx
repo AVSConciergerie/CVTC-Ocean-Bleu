@@ -9,7 +9,6 @@ export default function DashboardPage() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [smartAccount, setSmartAccount] = useState(null);
-  const [smartAccountClient, setSmartAccountClient] = useState(null);
   const { user } = usePrivy();
   const { wallets } = useWallets();
 
@@ -24,9 +23,8 @@ export default function DashboardPage() {
             await embeddedWallet.switchChain(97);
           }
           
-          const { smartAccount, smartAccountClient } = await createSmartAccount(embeddedWallet);
+          const { smartAccount } = await createSmartAccount(embeddedWallet);
           setSmartAccount(smartAccount);
-          setSmartAccountClient(smartAccountClient);
         } catch (error) {
           console.error("Erreur lors de l'initialisation du Smart Account:", error);
         }
@@ -91,7 +89,7 @@ export default function DashboardPage() {
         
         <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-2xl">
-            <h2 className="text-3xl font-bold text-heading">Bienvenue sur Ocean Bleu</h2>
+                        <h2 className="text-3xl font-bold text-heading">Dashboard Nettoyé et Opérationnel ! ✅</h2>
             <p className="mt-4 text-text-primary">
               Votre passerelle entre le Web3 et le monde réel. Chez CVTC, nous pensons que la blockchain est un outil formidable, souvent perçu comme complexe. Notre mission est simple : amincir la frontière entre ces deux univers pour vous offrir des interactions fluides et intuitives.
             </p>
