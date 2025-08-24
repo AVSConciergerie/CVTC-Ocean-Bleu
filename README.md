@@ -348,3 +348,90 @@ Cette approche élimine immédiatement tous les problèmes de compatibilité et 
 1.  **Action Requise par l'Utilisateur (C.) :** Créer un compte sur le dashboard de Pimlico et générer une clé API pour le réseau BSC Testnet.
 2.  **Pause et Nettoyage :** Une fois la clé obtenue, une pause sera observée pour nettoyer l'environnement de développement local et éliminer tout "zombie build" potentiel issu des tentatives précédentes.
 3.  **Intégration :** Intégrer la clé API de Pimlico dans l'application.
+
+---
+## Objectif : Nettoyer le projet en éliminant le code obsolète et les fichiers inutiles, tout en conservant l'intégrité de l'interface utilisateur (UI).
+
+### Étapes :
+
+1. **Identification des fichiers sources** :
+   - Liste les fichiers essentiels au fonctionnement du projet.
+   - Ignore les fichiers générés automatiquement (build, dist, node_modules, etc.).
+
+2. **Analyse des dépendances** :
+   - Vérifie les dépendances inutilisées dans `package.json`.
+   - Propose des solutions pour les supprimer ou les remplacer.
+
+3. **Nettoyage du code** :
+   - Supprime les fonctions, classes et variables non utilisées.
+   - Élimine le code commenté inutile.
+
+4. **Vérification de l'intégrité de l'UI** :
+   - Assure-toi que l'UI reste intacte après les modifications.
+   - Propose des tests visuels ou automatisés pour valider l'UI.
+
+5. **Optimisation des performances** :
+   - Identifie les parties du code pouvant être optimisées.
+   - Suggère des améliorations pour réduire la taille du bundle et améliorer les performances.
+
+6. **Documentation** :
+   - Mets à jour ou crée la documentation nécessaire pour le projet.
+   - Assure-toi que les instructions d'installation et d'utilisation sont claires.
+
+7. **Tests avant livraison** :
+   - Effectue des tests unitaires et d'intégration pour valider les fonctionnalités.
+   - Vérifie la compatibilité avec les navigateurs cibles.
+
+### Avertissements :
+
+- **Conservation de l'UI** : Ne modifie pas le code lié à l'interface utilisateur sans validation préalable.
+- **Tests** : Effectue des tests approfondis avant toute mise en production.
+- **Backup** : Crée une copie de sauvegarde du projet avant de commencer le nettoyage.
+
+### Bonus :
+
+- **Automatisation** : Propose des scripts ou outils pour automatiser le nettoyage et la vérification du projet.
+- **Suivi** : Mets en place un système de suivi des modifications pour faciliter la gestion des versions.
+
+---
+
+## ️ Roadmap de Nettoyage
+
+1. **Préparation** :
+   - [ ] Créer une branche de sauvegarde.
+   - [ ] Identifier les fichiers sources et générés.
+   - [ ] Mettre à jour les dépendances.
+
+2. **Nettoyage** :
+   - [ ] Supprimer les fichiers inutiles.
+   - [ ] Éliminer le code obsolète.
+   - [ ] Optimiser les performances.
+
+3. **Validation** :
+   - [ ] Tester l'intégrité de l'UI.
+   - [ ] Effectuer des tests unitaires et d'intégration.
+   - [ ] Vérifier la compatibilité avec les navigateurs.
+
+4. **Finalisation** :
+   - [ ] Mettre à jour la documentation.
+   - [ ] Fusionner la branche de nettoyage.
+   - [ ] Déployer en production.
+
+---
+
+## ✅ Check-list d'Étapes Ultra Simples
+
+- [ ] Avez-vous identifié tous les fichiers sources et générés ?
+- [ ] Avez-vous mis à jour toutes les dépendances ?
+- [ ] Avez-vous supprimé le code obsolète et les fichiers inutiles ?
+- [ ] L'UI fonctionne-t-elle comme prévu ?
+- [ ] Les tests unitaires et d'intégration ont-ils été effectués ?
+- [ ] La documentation est-elle à jour ?
+- [ ] Le projet est-il prêt pour la mise en production ?
+
+---
+
+##  Bonus
+
+- **Automatisation** : Utilisez des outils comme [STYLE-ANALYZER](https://arxiv.org/abs/1904.00935) pour fixer automatiquement les incohérences de style de code.
+- **Suivi des modifications** : Mettez en place un système de suivi des modifications pour faciliter la gestion des versions.
