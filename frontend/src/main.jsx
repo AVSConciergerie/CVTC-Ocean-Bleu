@@ -1,14 +1,12 @@
-
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { PrivyProvider } from '@privy-io/react-auth';
-
+import { ThemeProvider } from './context/ThemeContext';
+import { PimlicoProvider } from './context/PimlicoContext'; // Importation
 import './index.css';
 import App from './App.jsx';
 
-// On récupère l'App ID depuis les variables d'environnement de Vite.
-// Assurez-vous d'avoir un fichier /frontend/.env avec VITE_PRIVY_APP_ID=votre_clé
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID;
 
 if (!privyAppId) {
@@ -31,7 +29,11 @@ createRoot(document.getElementById('root')).render(
       }}
     >
       <BrowserRouter>
-        <App />
+        <ThemeProvider>
+          <PimlicoProvider> {/* Ajout du Provider */}
+            <App />
+          </PimlicoProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </PrivyProvider>
   </StrictMode>,

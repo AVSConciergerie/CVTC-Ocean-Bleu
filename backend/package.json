@@ -7,10 +7,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@biconomy/account": "^4.5.7",
-    "@biconomy/bundler": "^3.1.4",
-    "@biconomy/common": "^3.1.4",
-    "@biconomy/paymaster": "^3.1.4",
     "bcrypt": "^6.0.0",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.6",
@@ -19,10 +15,7 @@
     "ethers": "^6.15.0",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.2",
     "node-cron": "^4.2.1",
-    "node-fetch": "^3.3.2",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7"
+    "node-fetch": "^3.3.2"
   }
 }

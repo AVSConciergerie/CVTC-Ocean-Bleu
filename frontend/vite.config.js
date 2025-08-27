@@ -20,6 +20,10 @@ export default defineConfig({
     'process.env': {},
     global: {},
   },
+  esbuild: {
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
+  },
   resolve: {
     alias: {
       // Ajout de l'alias pour le paquet 'buffer'

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuroraBackground } from '../components/ui/AuroraBackground';
 import { Copy } from 'lucide-react';
@@ -79,7 +78,7 @@ const ManagementPage = () => {
             const whitelistRes = await axios.get('/api/onboarding?status=whitelist');
             setGreylistUsers(greylistRes.data);
             setWhitelistUsers(whitelistRes.data);
-        } catch (_err) {
+        } catch (err) {
             setError("Could not load user data. Are you logged in?");
         }
     }, []);
@@ -90,7 +89,7 @@ const ManagementPage = () => {
             await axios.get('/api/admin/whitelist');
             setIsAuthenticated(true);
             fetchData();
-        } catch (_err) {
+        } catch (err) {
             setIsAuthenticated(false);
         } finally {
             setLoading(false);
@@ -109,7 +108,7 @@ const ManagementPage = () => {
             setError('');
             setPassword('');
             fetchData();
-        } catch (_err) {
+        } catch (err) {
             setError('Invalid password');
         }
     };
@@ -130,7 +129,7 @@ const ManagementPage = () => {
             await axios.post('/api/admin/whitelist/add', { address: newAddress });
             setNewAddress('');
             fetchData();
-        } catch (_err) {
+        } catch (err) {
             setError('Failed to add address.');
         }
     };
@@ -145,7 +144,7 @@ const ManagementPage = () => {
             setCsvFile(null);
             fetchData();
             alert(res.data.message);
-        } catch (_err) {
+        } catch (err) {
             setError('CSV Upload failed.');
         }
     };
