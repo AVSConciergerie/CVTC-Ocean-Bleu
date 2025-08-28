@@ -15,26 +15,22 @@ export const PimlicoProvider = ({ children }) => {
   useEffect(() => {
     const init = async () => {
       setError(null);
-      if (!wallets || wallets.length === 0) {
-        return;
-      }
+      if (!wallets || wallets.length === 0) return;
 
       const privyWallet = wallets[0];
       const account = await privyWallet.getEthereumProvider();
       const chain = bscTestnet;
-
-      if (!account) {
-        return;
-      }
+      if (!account) return;
 
       try {
         const apiKey = import.meta.env.VITE_PIMLICO_API_KEY;
         const bundlerUrl = `https://api.pimlico.io/v1/bsc-testnet/rpc?apikey=${apiKey}`;
 
+        // Correction : transport doit être une fonction
         const client = await createSmartAccountClient({
           account,
           chain,
-          transport: http(bundlerUrl),
+          transport: () => http(bundlerUrl),
         });
 
         setSmartAccount(client);

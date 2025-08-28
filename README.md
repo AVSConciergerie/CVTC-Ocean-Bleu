@@ -6,6 +6,8 @@ Plateforme d'exploration sécurisée pour CVTC et le Web3, offrant une passerell
 ## Architecture
 Ce projet est une application full-stack composée d'un backend Node.js et d'un frontend React/Vite.
 
+L'environnement de développement principal est basé sur GitHub Codespaces, mais peut également être exécuté localement sur macOS.
+
 [... Contenu existant ...]
 
 ---
@@ -617,3 +619,28 @@ Malgré toutes les tentatives et les configurations, les `SyntaxError` persisten
 1.  Redémarrer le serveur de développement frontend.
 2.  Vérifier le tableau de bord et la console du navigateur pour toute erreur.
 3.  Considérer les solutions à long terme pour ces problèmes d'importation persistants (par exemple, essayer différentes versions de Vite ou de `permissionless`, rapporter le bug aux équipes concernées, ou envisager une autre bibliothèque d'abstraction de compte), car les solutions de code directes semblent épuisées.
+---
+
+## Journal de Développement - Session du 27/08/2025
+
+### Objectif : Déblocage de l'intégration Pimlico & Restauration de l'UI
+
+Cette session marathon a été consacrée à la résolution d'un bug persistant et complexe lié à l'intégration de la librairie `permissionless` pour la création de Smart Accounts avec Pimlico.
+
+**Résumé du Débogage :**
+
+1.  **Exploration de Pistes :** Le débogage a commencé par l'exploration de plusieurs hypothèses, y compris un problème potentiel avec le système de surveillance de fichiers de Vite sur macOS (`inotify`). Cela nous a conduits à installer `watchman` comme bonne pratique, bien que cela n'ait pas été la cause racine.
+
+2.  **Identification de la Cause Racine :** Après avoir isolé le problème dans un cas de test minimaliste, l'erreur précise a été identifiée grâce aux logs du serveur Vite : **`Missing "..." specifier in "permissionless" package`**. Cette erreur a révélé que nous tentions d'importer des modules depuis des chemins non-publics de la librairie, ce qui est interdit par les standards modernes de packaging JavaScript.
+
+3.  **Validation de la Solution :** La méthode d'initialisation correcte a été trouvée en utilisant un transport `http` standard de `viem` pointant vers l'URL du "bundler" Pimlico et en s'assurant que les bons paramètres étaient passés à la fonction `createSmartAccountClient`.
+
+**Restauration et Intégration :**
+
+1.  **Restauration de l'UI :** Une fois la logique du Smart Account fonctionnelle et validée, l'interface utilisateur complète et son design original ont été restaurés à partir d'un dossier de sauvegarde fourni par l'utilisateur.
+
+2.  **Intégration Finale :** La nouvelle logique `PimlicoContext` fonctionnelle a été proprement réintégrée dans l'application complète. Le `main.jsx` a été mis à jour pour fournir le contexte à toute l'application, et la page `DashboardPage.jsx` a été modifiée pour consommer ce contexte et afficher l'adresse du Smart Account.
+
+**État du Projet :**
+
+Le projet est maintenant dans un état stable et fonctionnel. Le blocage technique majeur est résolu, et l'interface utilisateur originale est de retour, enrichie de la fonctionnalité de Smart Account.
