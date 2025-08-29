@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { PrivyProvider } from '@privy-io/react-auth';
+import { bscTestnet } from 'viem/chains';
 import { ThemeProvider } from './context/ThemeContext';
 import { PimlicoProvider } from './context/PimlicoContext'; // Importation
 import './index.css';
@@ -18,6 +19,10 @@ createRoot(document.getElementById('root')).render(
     <PrivyProvider
       appId={privyAppId}
       config={{
+        // Configuration des chaînes
+        defaultChain: bscTestnet,
+        supportedChains: [bscTestnet],
+
         loginMethods: ['email'],
         appearance: {
           theme: 'dark',

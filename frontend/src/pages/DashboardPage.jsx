@@ -9,7 +9,7 @@ export default function DashboardPage() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const { user } = usePrivy();
-  const { smartAccount, error } = usePimlico(); // Utilisation du hook Pimlico
+  const { smartAccountAddress, error } = usePimlico(); // Utilisation du hook Pimlico
 
   useEffect(() => {
     if (user && user.createdAt) {
@@ -73,9 +73,9 @@ export default function DashboardPage() {
             <div className="mt-8 p-4 border border-gray-700 rounded-lg bg-gray-800/50">
               <h3 className="text-lg font-semibold text-heading">Votre Smart Account</h3>
               {error && <p className="mt-2 text-red-500">Erreur: {error}</p>}
-              {smartAccount ? (
+              {smartAccountAddress ? (
                 <p className="text-text-primary font-mono mt-2 break-all">
-                  {smartAccount.account.address}
+                  {smartAccountAddress}
                 </p>
               ) : (
                 <p className="text-text-secondary mt-2">Initialisation en cours...</p>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuroraBackground } from './components/ui/AuroraBackground';
@@ -12,6 +11,7 @@ import OnboardingPage from './pages/OnboardingPage';
 import InformationPage from './pages/InformationPage';
 import FonctionnalitesPage from './pages/FonctionnalitesPage';
 import P2PTransferPage from './pages/P2PTransferPage';
+import TestPimlicoTutorial from './pages/TestPimlicoTutorial'; // Ajout de la page de test
 
 // Import des styles globaux (qui contiennent maintenant le design system)
 import './index.css';
@@ -21,6 +21,10 @@ function App() {
     <>
       <AuroraBackground />
       <Routes>
+        {/* Route de test isolée */}
+        <Route path="/test-pimlico" element={<TestPimlicoTutorial />} />
+
+        {/* Routes existantes de l'application */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
