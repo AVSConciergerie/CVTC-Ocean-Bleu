@@ -122,3 +122,38 @@ L'environnement est maintenant configuré avec la nouvelle clé API. La prochain
 **État Actuel :**
 
 La logique principale de l'application est maintenant fonctionnelle. Les utilisateurs peuvent se connecter, et un Smart Account est automatiquement créé et associé à leur portefeuille Privy. L'application est stable.
+
+---
+
+## Journal de Développement - Session du 29/08/2025
+
+### Objectif : Résolution du Problème d'Adresse Identique entre Guest Wallet et Smart Account
+
+**Problème Identifié :**
+
+Lors des tests finaux, une impasse critique a été découverte : le Smart Account affichait la même adresse que le guest wallet, ce qui indique une erreur fondamentale dans l'implémentation. Un Smart Account étant un contrat déployé, il doit avoir sa propre adresse unique.
+
+**Cause Racine :**
+
+L'analyse du code a révélé que dans `frontend/src/context/PimlicoContext.jsx`, l'`EthereumProvider` de Privy était directement passé comme `account` au `createSmartAccountClient`, au lieu de créer d'abord un véritable Smart Account avec `toSafeSmartAccount`.
+
+**Solution Implémentée :**
+
+1. **Import des dépendances manquantes :** Ajout de `createPublicClient`, `createWalletClient`, `custom` de viem et `toSafeSmartAccount` de permissionless.
+2. **Constante EntryPoint :** Ajout de `ENTRYPOINT_V07_ADDRESS` pour la version 0.7.
+3. **Refactorisation complète de `initializeSmartAccount` :**
+   - Création d'un `PublicClient` pour la blockchain
+   - Création d'un `WalletClient` à partir du provider Privy
+   - Utilisation de `toSafeSmartAccount` pour générer un vrai Smart Account
+   - Passage du Smart Account (et non du provider) au `createSmartAccountClient`
+4. **Logging amélioré :** Ajout de logs pour distinguer clairement l'adresse du guest wallet de celle du Smart Account.
+
+**Validation :**
+
+Après correction, l'application génère maintenant :
+- Une adresse pour le guest wallet (🔗 Wallet Address)
+- Une adresse distincte pour le Smart Account (🏦 Smart Account Address)
+
+**État Actuel :**
+
+Le problème d'adresse identique est résolu. Le Smart Account génère maintenant correctement sa propre adresse de contrat unique, distincte du guest wallet. L'intégration Privy-Pimlico est maintenant complètement fonctionnelle sur BSC Testnet.
