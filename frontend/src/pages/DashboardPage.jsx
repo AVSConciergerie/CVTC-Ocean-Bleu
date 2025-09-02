@@ -3,6 +3,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import OnboardingModal from '../components/OnboardingModal';
+import TransactionHistory from '../components/TransactionHistory';
 import { usePimlico } from '../context/PimlicoContext'; // Importation du hook Pimlico
 
 export default function DashboardPage() {
@@ -85,6 +86,11 @@ export default function DashboardPage() {
             <p className="mt-8 text-text-secondary">
               Considérez cette plateforme comme votre tableau de bord personnel. C'est ici que vous gérez votre portefeuille, que vous interagissez avec notre écosystème et que vous découvrez comment le numérique peut enrichir votre quotidien. Explorez, expérimentez, et surtout, sentez-vous à l'aise.
             </p>
+            
+            {/* Section Historique des Transactions */}
+            <div className="mt-8">
+              <TransactionHistory smartAccountAddress={smartAccountAddress} />
+            </div>
           </div>
         </main>
       </div>

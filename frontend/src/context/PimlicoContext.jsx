@@ -4,6 +4,7 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { createSmartAccountClient } from "permissionless";
 import { toSafeSmartAccount } from "permissionless/accounts";
+import { createPaymasterClient } from "viem/account-abstraction";
 import { bscTestnet } from "viem/chains";
 
 const ENTRYPOINT_V07_ADDRESS = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
@@ -30,30 +31,40 @@ export const PimlicoProvider = ({ children }) => {
           await embeddedWallet.switchChain(bscTestnet.id);
       }
       
-      // Créer un client public
       const publicClient = createPublicClient({
         chain: bscTestnet,
         transport: http(),
       });
 
-      // Obtenir le provider Ethereum de Privy
       const ethereumProvider = await embeddedWallet.getEthereumProvider();
       if (!ethereumProvider) return;
 
-      // Créer un wallet client à partir du provider Privy
       const walletClient = createWalletClient({
         chain: bscTestnet,
         transport: custom(ethereumProvider),
       });
 
-      // Obtenir l'adresse du wallet
       const [walletAddress] = await walletClient.getAddresses();
       console.log(`🔗 Wallet Address (Guest): ${walletAddress}`);
 
-      // Créer le Smart Account à partir du wallet client
+      // Créer un objet owner avec les propriétés minimales requises
+      const ownerAccount = {
+        address: walletAddress,
+        signMessage: async ({ message }) => {
+          return await walletClient.signMessage({ message, account: walletAddress });
+        },
+        signTypedData: async (typedData) => {
+          return await walletClient.signTypedData({ ...typedData, account: walletAddress });
+        },
+        signTransaction: async (transaction) => {
+          return await walletClient.signTransaction({ ...transaction, account: walletAddress });
+        },
+        type: 'local'
+      };
+
       const safeAccount = await toSafeSmartAccount({
         client: publicClient,
-        owners: [{ address: walletAddress }], // Utiliser l'adresse du wallet comme owner
+        owners: [ownerAccount],
         entryPoint: { address: ENTRYPOINT_V07_ADDRESS, version: "0.7" },
         version: "1.4.1",
       });
@@ -62,11 +73,27 @@ export const PimlicoProvider = ({ children }) => {
 
       const apiKey = import.meta.env.VITE_PIMLICO_API_KEY;
       const bundlerUrl = `https://api.pimlico.io/v1/binance-testnet/rpc?apikey=${apiKey}`;
+      const paymasterUrl = `https://api.pimlico.io/v2/binance-testnet/rpc?apikey=${apiKey}`;
 
-      const smartAccountClient = await createSmartAccountClient({
+      // Create paymaster client
+      const paymaster = createPaymasterClient({
+        transport: http(paymasterUrl)
+      });
+
+      const smartAccountClient = createSmartAccountClient({
         account: safeAccount,
         chain: bscTestnet,
         bundlerTransport: http(bundlerUrl),
+        paymaster,
+        userOperation: {
+          estimateFeesPerGas: async ({ bundlerClient }) => {
+            const gasPrice = await publicClient.getGasPrice();
+            return {
+              maxFeePerGas: gasPrice,
+              maxPriorityFeePerGas: gasPrice / 10n,
+            };
+          },
+        },
       });
 
       setSmartAccount(smartAccountClient);

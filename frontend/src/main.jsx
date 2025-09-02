@@ -3,10 +3,14 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { PrivyProvider } from '@privy-io/react-auth';
 import { bscTestnet } from 'viem/chains';
+import { Buffer } from 'buffer';
 import { ThemeProvider } from './context/ThemeContext';
 import { PimlicoProvider } from './context/PimlicoContext'; // Importation
 import './index.css';
 import App from './App.jsx';
+
+// Polyfill Buffer pour Privy
+window.Buffer = Buffer;
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID;
 

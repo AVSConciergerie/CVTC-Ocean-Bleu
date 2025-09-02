@@ -18,7 +18,7 @@ export default defineConfig({
   // Ajout pour la compatibilité des modules Node.js dans le navigateur
   define: {
     'process.env': {},
-    global: {},
+    global: 'globalThis',
   },
   esbuild: {
     jsxFactory: 'React.createElement',
@@ -27,7 +27,10 @@ export default defineConfig({
   resolve: {
     alias: {
       // Ajout de l'alias pour le paquet 'buffer'
-      buffer: 'buffer/',
+      buffer: 'buffer',
     },
+  },
+  optimizeDeps: {
+    include: ['buffer'],
   },
 })
