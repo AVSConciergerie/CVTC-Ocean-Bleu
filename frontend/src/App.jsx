@@ -11,6 +11,7 @@ import OnboardingPage from './pages/OnboardingPage';
 import InformationPage from './pages/InformationPage';
 import FonctionnalitesPage from './pages/FonctionnalitesPage';
 import P2PTransferPage from './pages/P2PTransferPage';
+import SettingsPage from './pages/SettingsPage'; // Importer la nouvelle page
 import TestPimlicoTutorial from './pages/TestPimlicoTutorial'; // Ajout de la page de test
 
 // Import des styles globaux (qui contiennent maintenant le design system)
@@ -33,6 +34,7 @@ function App() {
         <Route path="/information" element={<InformationPage />} />
         <Route path="/fonctionnalites" element={<FonctionnalitesPage />} />
         <Route path="/p2p-transfer" element={<P2PTransferPage />} />
+        <Route path="/settings" element={<SettingsPage />} /> 
       </Routes>
     </>
   );
