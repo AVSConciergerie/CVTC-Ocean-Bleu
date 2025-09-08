@@ -1,21 +1,20 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  console.log("Deploying Lock contract to BSC Testnet...");
-  const Lock = await ethers.getContractFactory("Lock");
+  console.log("Deploying CVTCSwap contract to BSC Testnet...");
+  const CVTCSwap = await ethers.getContractFactory("CVTCSwap");
 
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = (Math.floor(Date.now() / 1000)) + ONE_YEAR_IN_SECS;
-  const lockedAmount = ethers.utils.parseEther("0.0001"); // Use a small amount for testnet
+  // Adresse du token CVTC (à définir dans .env ou ici)
+  const cvtcAddress = process.env.CVTC_ADDRESS || "0x..."; // Remplacer par l'adresse réelle
 
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  const cvtcSwap = await CVTCSwap.deploy(cvtcAddress);
 
-  await lock.deployed();
+  await cvtcSwap.deployed();
 
-  console.log(`Lock with 0.0001 tBNB deployed to ${lock.address} on BSC Testnet`);
-  console.log(`You can check the transaction on https://testnet.bscscan.com/address/${lock.address}`);
+  console.log(`CVTCSwap deployed to ${cvtcSwap.address} on BSC Testnet`);
+  console.log(`You can check the transaction on https://testnet.bscscan.com/address/${cvtcSwap.address}`);
   console.log(`To verify the contract, run:`);
-  console.log(`npx hardhat verify --network bscTestnet ${lock.address} ${unlockTime}`);
+  console.log(`npx hardhat verify --network bscTestnet ${cvtcSwap.address} "${cvtcAddress}"`);
 }
 
 main().catch((error) => {

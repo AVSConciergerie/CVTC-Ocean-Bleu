@@ -20,6 +20,12 @@ const config: HardhatUserConfig = {
       chainId: 97,
       accounts: [process.env.PRIVATE_KEY || ""],
     },
+    // Pimlico bundler network for account abstraction
+    pimlico: {
+      url: process.env.PIMLICO_RPC_URL || "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7",
+      chainId: 97,
+      accounts: [process.env.PRIVATE_KEY || ""],
+    },
   },
   etherscan: {
     // Use the simpler, direct apiKey format
