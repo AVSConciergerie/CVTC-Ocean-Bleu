@@ -1,9 +1,9 @@
-import { ethers } from "hardhat";
+import { ethers } from "ethers";
 
 async function main() {
   console.log("💎 Abonnement Premium automatique...");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
   // Adresse du contrat Premium
   const premiumAddress = "0xA788393d86699cAeABBc78C6B2B5B53c84B39663";
@@ -15,7 +15,7 @@ async function main() {
     "function getPremiumUserInfo(address user) external view returns (bool isActive, uint256 subscriptionEnd, uint256 personalReserve, uint256 totalDiscountsReceived, uint256 transactionCount)"
   ];
 
-  const premiumContract = new ethers.Contract(premiumAddress, premiumAbi, provider);
+  const premiumContract = new ethers.Contract(premiumAddress, premiumAbi, provider) as any;
 
   const privateKey = process.env.PRIVATE_KEY;
   if (!privateKey) {
@@ -42,7 +42,7 @@ async function main() {
   try {
     // Vérifier le solde BNB
     const balance = await provider.getBalance(wallet.address);
-    const balanceBNB = ethers.utils.formatEther(balance);
+    const balanceBNB = ethers.formatEther(balance);
     console.log("💰 Solde BNB:", balanceBNB);
 
     if (parseFloat(balanceBNB) < 5.1) {
@@ -53,7 +53,7 @@ async function main() {
 
     // S'abonner avec exactement 5 BNB
     const tx = await premiumWithSigner.subscribePremium({
-      value: ethers.utils.parseEther("5"),
+      value: ethers.parseEther("5"),
       gasLimit: 300000
     });
 
@@ -62,7 +62,7 @@ async function main() {
 
     const receipt = await tx.wait();
     console.log("✅ Abonnement confirmé !");
-    console.log("📊 Frais de gaz:", ethers.utils.formatEther(receipt.gasUsed.mul(tx.gasPrice)), "BNB");
+    console.log("📊 Frais de gaz:", ethers.formatEther(receipt.gasUsed * tx.gasPrice), "BNB");
 
     // Vérification finale
     const isPremiumAfter = await premiumContract.isPremiumUser(wallet.address);
@@ -73,7 +73,7 @@ async function main() {
       console.log("📋 Informations utilisateur:");
       console.log("   • Actif:", userInfo.isActive);
       console.log("   • Fin d'abonnement:", new Date(userInfo.subscriptionEnd * 1000).toLocaleString());
-      console.log("   • Réserve personnelle:", ethers.utils.formatEther(userInfo.personalReserve), "BNB");
+      console.log("   • Réserve personnelle:", ethers.formatEther(userInfo.personalReserve), "BNB");
 
       console.log("\n🎉 Abonnement Premium réussi !");
       console.log("✅ Vous pouvez maintenant utiliser les transferts échelonnés !");

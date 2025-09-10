@@ -1,9 +1,9 @@
-import { ethers } from "hardhat";
+import { ethers } from "ethers";
 
 async function main() {
   console.log("🔧 Configuration des accès du Premium dans le token CVTC...");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
   // Adresses
   const tokenAddress = "0x532FC49071656C16311F2f89E6e41C53243355D3";
@@ -40,7 +40,7 @@ async function main() {
       console.log("👑 Propriétaire du token:", owner);
     } catch (error) {
       console.log("ℹ️  Le token n'a pas de fonction owner() - contrat standard ERC20");
-      owner = ethers.constants.AddressZero;
+      owner = ethers.ZeroAddress;
     }
 
     // Vérifier si le contrat a des fonctions de whitelist
@@ -64,7 +64,7 @@ async function main() {
     }
 
     // Si le contrat a un owner et des fonctions d'administration, essayer de configurer
-    if (owner !== ethers.constants.AddressZero) {
+    if (owner !== ethers.ZeroAddress) {
       const privateKey = process.env.PRIVATE_KEY;
       if (!privateKey) {
         console.error("❌ PRIVATE_KEY manquante dans .env");
@@ -90,9 +90,9 @@ async function main() {
           console.log("\n🔧 Whitelist du Premium dans le token...");
           let tx;
           try {
-            tx = await tokenWithSigner.updateWhitelist(premiumAddress, true);
+            tx = await (tokenWithSigner as any).updateWhitelist(premiumAddress, true);
           } catch (error) {
-            tx = await tokenWithSigner.addToWhitelist(premiumAddress);
+            tx = await (tokenWithSigner as any).addToWhitelist(premiumAddress);
           }
           console.log("✅ Transaction whitelist:", tx.hash);
           await tx.wait();
@@ -106,7 +106,7 @@ async function main() {
       if (hasAuthorizedSpenders) {
         try {
           console.log("\n🔧 Autorisation du Premium comme spender...");
-          const tx = await tokenWithSigner.setAuthorizedSpender(premiumAddress, true);
+          const tx = await (tokenWithSigner as any).setAuthorizedSpender(premiumAddress, true);
           console.log("✅ Transaction autorisation:", tx.hash);
           await tx.wait();
           console.log("✅ Premium autorisé comme spender avec succès");
@@ -118,7 +118,7 @@ async function main() {
 
     // Test final : vérifier si l'approbation fonctionne maintenant
     console.log("\n🧪 Test de l'approbation...");
-    const testAmount = ethers.utils.parseUnits("1", 2); // 1 CVTC
+    const testAmount = ethers.parseUnits("1", 2); // 1 CVTC
 
     try {
       // Créer un wallet pour le test
@@ -127,14 +127,14 @@ async function main() {
         const wallet = new ethers.Wallet(privateKey, provider);
         const tokenWithWallet = tokenContract.connect(wallet);
 
-        const tx = await tokenWithWallet.approve(premiumAddress, testAmount);
+        const tx = await (tokenWithWallet as any).approve(premiumAddress, testAmount);
         console.log("✅ Test d'approbation réussi:", tx.hash);
         await tx.wait();
         console.log("✅ Approbation confirmée !");
 
         // Vérifier l'allowance
         const allowance = await tokenContract.allowance(wallet.address, premiumAddress);
-        console.log("💰 Allowance vérifiée:", ethers.utils.formatUnits(allowance, 2), "CVTC");
+        console.log("💰 Allowance vérifiée:", ethers.formatUnits(allowance, 2), "CVTC");
       }
     } catch (error: any) {
       console.log("❌ Test d'approbation échoué:", error.message);

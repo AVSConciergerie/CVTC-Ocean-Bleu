@@ -22,7 +22,10 @@ export default function InformationPage() {
   }, []);
 
   return (
-    <div className="p-8 text-text-primary">
+    <div className="p-8 text-text-primary relative">
+      <Link to="/" className="absolute top-4 left-4 text-sm text-text-secondary hover:text-text-primary">
+        Accueil
+      </Link>
       <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary mb-8">
         <ArrowLeft size={18} />
         Retour au Dashboard

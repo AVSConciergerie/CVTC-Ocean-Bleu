@@ -29,16 +29,18 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen flex flex-col text-text-primary dark">
-      {/* --- Header --- */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center">
-        <img src="/assets/logo.svg" className="h-8" alt="Logo CVTC" />
-        <button 
-          className="px-4 py-2 text-sm font-medium rounded-md hover:bg-link-hover-bg transition-colors"
-          onClick={() => navigate('/login')}
-        >
-          J'ai déjà un compte
-        </button>
-      </header>
+       {/* --- Header --- */}
+       <header className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center">
+         <img src="/assets/logo.svg" className="h-8" alt="Logo CVTC" />
+          <div className="flex gap-4">
+            <button
+              className="px-4 py-2 text-sm font-medium rounded-md hover:bg-link-hover-bg transition-colors"
+              onClick={() => navigate('/login')}
+            >
+              J'ai déjà un compte
+            </button>
+          </div>
+       </header>
 
       {/* --- Main Content --- */}
       <main className="flex-1 flex flex-col items-center justify-center text-center p-6">

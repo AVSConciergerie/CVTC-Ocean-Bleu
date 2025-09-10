@@ -21,23 +21,37 @@ export const PimlicoProvider = ({ children }) => {
   const initializeSmartAccount = async () => {
     setError(null);
 
-    const embeddedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
-    if (!embeddedWallet) {
+    // Priorité : MetaMask d'abord, puis guest wallet Privy
+    let selectedWallet = wallets.find((wallet) => wallet.walletClientType === 'metamask');
+
+    if (!selectedWallet) {
+      // Fallback vers guest wallet Privy
+      selectedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
+    }
+
+    if (!selectedWallet) {
+      setError("Aucun wallet détecté. Veuillez connecter MetaMask ou utiliser le guest wallet.");
       return;
     }
 
+    console.log(`🔗 Wallet détecté: ${selectedWallet.walletClientType} - ${selectedWallet.address}`);
+
     try {
-      if (embeddedWallet.chainId !== `eip155:${bscTestnet.id}`) {
-          await embeddedWallet.switchChain(bscTestnet.id);
+      // Vérifier et changer de réseau si nécessaire
+      if (selectedWallet.chainId !== `eip155:${bscTestnet.id}`) {
+          await selectedWallet.switchChain(bscTestnet.id);
       }
-      
+
       const publicClient = createPublicClient({
         chain: bscTestnet,
         transport: http(),
       });
 
-      const ethereumProvider = await embeddedWallet.getEthereumProvider();
-      if (!ethereumProvider) return;
+      const ethereumProvider = await selectedWallet.getEthereumProvider();
+      if (!ethereumProvider) {
+        setError("Impossible d'obtenir le provider Ethereum du wallet.");
+        return;
+      }
 
       const walletClient = createWalletClient({
         chain: bscTestnet,
@@ -45,7 +59,8 @@ export const PimlicoProvider = ({ children }) => {
       });
 
       const [walletAddress] = await walletClient.getAddresses();
-      console.log(`🔗 Wallet Address (Guest): ${walletAddress}`);
+      const walletType = selectedWallet.walletClientType === 'metamask' ? 'MetaMask' : 'Guest Wallet';
+      console.log(`🔗 Wallet Address (${walletType}): ${walletAddress}`);
 
       // Créer un objet owner avec les propriétés minimales requises
       const ownerAccount = {
@@ -71,30 +86,31 @@ export const PimlicoProvider = ({ children }) => {
 
       console.log(`🏦 Smart Account Address: ${safeAccount.address}`);
 
-      const apiKey = import.meta.env.VITE_PIMLICO_API_KEY;
-      const bundlerUrl = `https://api.pimlico.io/v1/binance-testnet/rpc?apikey=${apiKey}`;
-      const paymasterUrl = `https://api.pimlico.io/v2/binance-testnet/rpc?apikey=${apiKey}`;
+       const apiKey = import.meta.env.VITE_PIMLICO_API_KEY;
+       // Utiliser Ethereum Sepolia au lieu de BSC Testnet pour les tests ERC-4337
+       const bundlerUrl = `https://api.pimlico.io/v1/sepolia/rpc?apikey=${apiKey}`;
+       const paymasterUrl = `https://api.pimlico.io/v1/sepolia/rpc?apikey=${apiKey}`;
 
-      // Create paymaster client
-      const paymaster = createPaymasterClient({
-        transport: http(paymasterUrl)
-      });
+       // Create paymaster client pour Sepolia
+       const paymaster = createPaymasterClient({
+         transport: http(paymasterUrl),
+       });
 
-      const smartAccountClient = createSmartAccountClient({
-        account: safeAccount,
-        chain: bscTestnet,
-        bundlerTransport: http(bundlerUrl),
-        paymaster,
-        userOperation: {
-          estimateFeesPerGas: async ({ bundlerClient }) => {
-            const gasPrice = await publicClient.getGasPrice();
-            return {
-              maxFeePerGas: gasPrice,
-              maxPriorityFeePerGas: gasPrice / 10n,
-            };
-          },
-        },
-      });
+       const smartAccountClient = createSmartAccountClient({
+         account: safeAccount,
+         chain: bscTestnet, // Garder BSC Testnet pour l'interface
+         bundlerTransport: http(bundlerUrl), // Mais utiliser Sepolia bundler
+         paymaster,
+         userOperation: {
+           estimateFeesPerGas: async ({ bundlerClient }) => {
+             const gasPrice = await publicClient.getGasPrice();
+             return {
+               maxFeePerGas: gasPrice,
+               maxPriorityFeePerGas: gasPrice / 10n,
+             };
+           },
+         },
+       });
 
       setSmartAccount(smartAccountClient);
       setSmartAccountAddress(safeAccount.address);

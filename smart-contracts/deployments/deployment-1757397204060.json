@@ -1,0 +1,37 @@
+{
+  "network": "bscTestnet",
+  "chainId": 97,
+  "deployer": "0xb60a347C88F1F83Ba53dAA4ef5ab1D83C37CCEa9",
+  "timestamp": "2025-09-09T05:53:24.060Z",
+  "contracts": {
+    "CVTCSwap": {
+      "address": "0x0f756152Ec6bdCc83E057E543D949b5F6d8E69cd",
+      "constructorArgs": [
+        "0x532FC49071656C16311F2f89E6e41C53243355D3"
+      ]
+    },
+    "CVTCPremium": {
+      "address": "0x76a2Af26f0F1D6c7b61ef6b4168dEc9FBB0Cad65",
+      "constructorArgs": [
+        "0x532FC49071656C16311F2f89E6e41C53243355D3",
+        "0x0f756152Ec6bdCc83E057E543D949b5F6d8E69cd"
+      ]
+    },
+    "Lock": {
+      "address": "0xf2A9c08F3f9E6F0FF0E46Ac938bf13A9d97687e0",
+      "constructorArgs": [
+        1788933192
+      ]
+    },
+    "CVTCCompounderSimple": {
+      "address": "0x8c442bb78fc52ae36078133e7f680C8ca4e6157a",
+      "constructorArgs": [
+        "0x9ac64cc6e4415144c455bd8e4837fea55603e5c3",
+        "0x532FC49071656C16311F2f89E6e41C53243355D3",
+        "0x532FC49071656C16311F2f89E6e41C53243355D3",
+        "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+        "0x0f756152Ec6bdCc83E057E543D949b5F6d8E69cd"
+      ]
+    }
+  }
+}

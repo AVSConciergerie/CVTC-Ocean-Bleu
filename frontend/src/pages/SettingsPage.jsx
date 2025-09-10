@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ThemeToggle from '../components/ui/ThemeToggle';
 
 const PROFILE_PIC_STORAGE_KEY = 'userProfilePic';
 
@@ -35,6 +36,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-8 text-text-primary">
+      <ThemeToggle />
       <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary mb-8">
         <ArrowLeft size={18} />
         Retour au Dashboard

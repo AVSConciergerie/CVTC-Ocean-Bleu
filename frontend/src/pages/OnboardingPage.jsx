@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import './OnboardingPage.css';
 
@@ -69,7 +69,10 @@ const OnboardingPage = () => {
   };
 
   return (
-    <div className="onboarding-container">
+    <div className="onboarding-container relative">
+      <Link to="/" className="absolute top-4 left-4 text-sm text-gray-400 hover:text-white">
+        Accueil
+      </Link>
       <h1>Demande d'accès ({mode})</h1>
       <form onSubmit={handleSubmit}>
         <label>Nom :

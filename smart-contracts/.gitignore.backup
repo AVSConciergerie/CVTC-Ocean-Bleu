@@ -1,0 +1,14 @@
+# Fichiers de sauvegarde du système Premium
+*.backup
+test-premium-system.ts.backup
+subscribe-premium.ts.backup
+setup-premium-token-access.ts.backup
+test-batching-p2p.ts.backup
+demo-staggered-p2p.ts.backup
+test-monthly-staggered.ts.backup
+test-staggered-p2p.ts.backup
+test-p2p-cvtc.ts.backup
+demo-accelerated.ts.backup
+
+# Dossier de sauvegarde complet
+backup/

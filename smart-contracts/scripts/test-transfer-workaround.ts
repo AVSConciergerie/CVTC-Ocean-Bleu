@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
   console.log("🧪 Test des transferts échelonnés avec solution temporaire...");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
   // Adresses
   const premiumAddress = "0xA788393d86699cAeABBc78C6B2B5B53c84B39663";
@@ -56,15 +56,15 @@ async function main() {
     try {
       // Essayer d'appeler une fonction qui pourrait exister
       const testAddress = "0xb60a347C88F1F83Ba53dAA4ef5ab1D83C37CCEa9";
-      const testAmount = ethers.utils.parseUnits("0.01", 2); // 0.01 CVTC
+      const testAmount = ethers.parseUnits("0.01", 2); // 0.01 CVTC
 
       console.log("📋 Test avec:");
       console.log("   • Destinataire:", testAddress);
-      console.log("   • Montant:", ethers.utils.formatUnits(testAmount, 2), "CVTC");
+      console.log("   • Montant:", ethers.formatUnits(testAmount, 2), "CVTC");
 
       // Vérifier le solde CVTC
       const cvtcBalance = await tokenContract.balanceOf(wallet.address);
-      console.log("💰 Solde CVTC:", ethers.utils.formatUnits(cvtcBalance, 2));
+      console.log("💰 Solde CVTC:", ethers.formatUnits(cvtcBalance, 2));
 
       if (cvtcBalance.lt(testAmount)) {
         console.log("❌ Solde CVTC insuffisant pour le test");
@@ -74,7 +74,7 @@ async function main() {
       // Approuver le contrat Premium
       console.log("🔓 Approbation du contrat Premium...");
       const tokenWithSigner = tokenContract.connect(wallet);
-      const approveTx = await tokenWithSigner.approve(premiumAddress, testAmount);
+      const approveTx = await (tokenWithSigner as any).approve(premiumAddress, testAmount);
       console.log("✅ Approbation:", approveTx.hash);
       await approveTx.wait();
 
@@ -85,7 +85,7 @@ async function main() {
       // Mais cela nous donnera plus d'informations sur l'erreur
 
       try {
-        const transferTx = await premiumWithSigner.initiateStaggeredTransfer(testAddress, testAmount);
+        const transferTx = await (premiumWithSigner as any).initiateStaggeredTransfer(testAddress, testAmount);
         console.log("✅ Transfert réussi:", transferTx.hash);
         await transferTx.wait();
         console.log("🎉 Test réussi !");

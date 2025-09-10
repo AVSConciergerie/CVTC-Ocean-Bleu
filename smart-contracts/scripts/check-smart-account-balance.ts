@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
   console.log("💰 Vérification du solde CVTC dans le Smart Account...");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
   // Adresses
   const cvtcTokenAddress = "0x532FC49071656C16311F2f89E6e41C53243355D3";
@@ -34,7 +34,7 @@ async function main() {
 
     // Vérifier le solde dans le Smart Account
     const balance = await cvtcContract.balanceOf(smartAccountAddress);
-    const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+    const formattedBalance = ethers.formatUnits(balance, decimals);
 
     console.log(`\n💰 Solde CVTC dans le Smart Account:`);
     console.log(`   • Raw: ${balance.toString()} wei`);
@@ -66,7 +66,7 @@ async function main() {
     if (privateKey) {
       const wallet = new ethers.Wallet(privateKey, provider);
       const eoaBalance = await cvtcContract.balanceOf(wallet.address);
-      const formattedEOABalance = ethers.utils.formatUnits(eoaBalance, decimals);
+      const formattedEOABalance = ethers.formatUnits(eoaBalance, decimals);
 
       console.log(`\n🔄 Comparaison avec l'EOA:`);
       console.log(`   • EOA (${wallet.address.slice(-6)}): ${formattedEOABalance} ${symbol}`);

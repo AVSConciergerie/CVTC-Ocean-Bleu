@@ -13,16 +13,16 @@ async function main() {
     const CVTCSwap = await ethers.getContractFactory("CVTCSwap");
     const cvtcAddress = process.env.CVTC_ADDRESS || "0x0000000000000000000000000000000000000000";
     const cvtcSwap = await CVTCSwap.deploy(cvtcAddress);
-    await cvtcSwap.deployed();
-    console.log(`✅ CVTCSwap déployé: ${cvtcSwap.address}`);
+    await cvtcSwap.waitForDeployment();
+    console.log(`✅ CVTCSwap déployé: ${await cvtcSwap.getAddress()}`);
 
     // 2. Déploiement Lock
     console.log("\n🔒 Déploiement Lock...");
     const Lock = await ethers.getContractFactory("Lock");
     const unlockTime = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60; // 1 an
     const lock = await Lock.deploy(unlockTime);
-    await lock.deployed();
-    console.log(`✅ Lock déployé: ${lock.address}`);
+    await lock.waitForDeployment();
+    console.log(`✅ Lock déployé: ${await lock.getAddress()}`);
 
     // 3. Déploiement CVTCCompounderSimple
     console.log("\n⚡ Déploiement CVTCCompounderSimple...");
@@ -37,17 +37,17 @@ async function main() {
       rewardTokenAddress,
       cvtcAddress,
       wbnbAddress,
-      cvtcSwap.address
+      await cvtcSwap.getAddress()
     );
-    await cvtcCompounder.deployed();
-    console.log(`✅ CVTCCompounderSimple déployé: ${cvtcCompounder.address}`);
+    await cvtcCompounder.waitForDeployment();
+    console.log(`✅ CVTCCompounderSimple déployé: ${await cvtcCompounder.getAddress()}`);
 
-    // 4. Déploiement CVTCPremium
-    console.log("\n👑 Déploiement CVTCPremium...");
-    const CVTCPremium = await ethers.getContractFactory("CVTCPremium");
-    const cvtcPremium = await CVTCPremium.deploy(cvtcAddress, cvtcSwap.address);
-    await cvtcPremium.deployed();
-    console.log(`✅ CVTCPremium déployé: ${cvtcPremium.address}`);
+    // 4. Déploiement CVTCTransferBasic (SANS Premium)
+    console.log("\n📤 Déploiement CVTCTransferBasic...");
+    const CVTCTransferBasic = await ethers.getContractFactory("CVTCTransferBasic");
+    const cvtcTransferBasic = await CVTCTransferBasic.deploy(cvtcAddress);
+    await cvtcTransferBasic.waitForDeployment();
+    console.log(`✅ CVTCTransferBasic déployé: ${await cvtcTransferBasic.getAddress()}`);
 
     // Sauvegarde des adresses
     const deploymentInfo = {
@@ -55,10 +55,10 @@ async function main() {
       timestamp: new Date().toISOString(),
       deployer: deployer.address,
       contracts: {
-        CVTCSwap: cvtcSwap.address,
-        Lock: lock.address,
-        CVTCCompounderSimple: cvtcCompounder.address,
-        CVTCPremium: cvtcPremium.address
+        CVTCSwap: await cvtcSwap.getAddress(),
+        Lock: await lock.getAddress(),
+        CVTCCompounderSimple: await cvtcCompounder.getAddress(),
+        CVTCTransferBasic: await cvtcTransferBasic.getAddress()
       }
     };
 
@@ -77,10 +77,10 @@ async function main() {
     // Mise à jour du .env
     const envContent = `
 # Adresses des contrats déployés - BSC Testnet
-CVTC_SWAP_ADDRESS=${cvtcSwap.address}
-LOCK_ADDRESS=${lock.address}
-CVTC_COMPOUNDER_ADDRESS=${cvtcCompounder.address}
-CVTC_PREMIUM_ADDRESS=${cvtcPremium.address}
+CVTC_SWAP_ADDRESS=${await cvtcSwap.getAddress()}
+LOCK_ADDRESS=${await lock.getAddress()}
+CVTC_COMPOUNDER_ADDRESS=${await cvtcCompounder.getAddress()}
+CVTC_TRANSFER_BASIC_ADDRESS=${await cvtcTransferBasic.getAddress()}
 `;
 
     const envFile = path.join(__dirname, "../.env");
@@ -94,10 +94,10 @@ CVTC_PREMIUM_ADDRESS=${cvtcPremium.address}
 
     console.log("\n🎉 DÉPLOIEMENT TERMINÉ !");
     console.log("📋 Adresses des contrats:");
-    console.log(`   CVTCSwap: ${cvtcSwap.address}`);
-    console.log(`   Lock: ${lock.address}`);
-    console.log(`   CVTCCompounderSimple: ${cvtcCompounder.address}`);
-    console.log(`   CVTCPremium: ${cvtcPremium.address}`);
+    console.log(`   CVTCSwap: ${await cvtcSwap.getAddress()}`);
+    console.log(`   Lock: ${await lock.getAddress()}`);
+    console.log(`   CVTCCompounderSimple: ${await cvtcCompounder.getAddress()}`);
+    console.log(`   CVTCTransferBasic: ${await cvtcTransferBasic.getAddress()}`);
 
   } catch (error: any) {
     console.log("❌ Erreur de déploiement:", error?.message || "Erreur inconnue");

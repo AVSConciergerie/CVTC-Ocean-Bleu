@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuroraBackground } from './components/ui/AuroraBackground';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Import de toutes les pages de l'application
 import HomePage from './pages/HomePage';
@@ -22,19 +23,45 @@ function App() {
     <>
       <AuroraBackground />
       <Routes>
-        {/* Route de test isolée */}
+        {/* Route de test isolée - PAS PROTÉGÉE */}
         <Route path="/test-pimlico" element={<TestPimlicoTutorial />} />
 
-        {/* Routes existantes de l'application */}
+        {/* Routes publiques */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/management" element={<ManagementPage />} />
-        <Route path="/onboarding/:mode" element={<OnboardingPage />} />
         <Route path="/information" element={<InformationPage />} />
-        <Route path="/fonctionnalites" element={<FonctionnalitesPage />} />
-        <Route path="/p2p-transfer" element={<P2PTransferPage />} />
-        <Route path="/settings" element={<SettingsPage />} /> 
+        <Route path="/onboarding/:mode" element={<OnboardingPage />} />
+
+        {/* Routes protégées nécessitant authentification */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/management" element={
+          <ProtectedRoute>
+            <ManagementPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/fonctionnalites" element={
+          <ProtectedRoute>
+            <FonctionnalitesPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Routes hautement sensibles nécessitant wallet */}
+        <Route path="/p2p-transfer" element={
+          <ProtectedRoute requireWallet={true}>
+            <P2PTransferPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/settings" element={
+          <ProtectedRoute requireWallet={true}>
+            <SettingsPage />
+          </ProtectedRoute>
+        } />
       </Routes>
     </>
   );

@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import OnboardingModal from '../components/OnboardingModal';
 import TermsModal from '../components/TermsModal';
 import TransactionHistory from '../components/TransactionHistory';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import { usePimlico } from '../context/PimlicoContext';
 import { Copy } from 'lucide-react';
 
@@ -96,6 +97,9 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen bg-transparent text-text-primary">
+      {/* Theme Toggle - Discret */}
+      <ThemeToggle />
+
       {/* Modal des conditions d'utilisation - OBLIGATOIRE */}
       {showTermsModal && (
         <TermsModal

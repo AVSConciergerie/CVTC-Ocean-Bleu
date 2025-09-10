@@ -17,7 +17,7 @@ export default defineConfig({
   },
   // Ajout pour la compatibilité des modules Node.js dans le navigateur
   define: {
-    'process.env': {},
+    // 'process.env': {}, // Commenté pour permettre l'utilisation de process.env
     global: 'globalThis',
   },
   esbuild: {

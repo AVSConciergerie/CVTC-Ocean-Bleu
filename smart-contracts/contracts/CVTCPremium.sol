@@ -69,9 +69,9 @@ contract CVTCPremium is Ownable(msg.sender), ReentrancyGuard, ICVTCReserve {
     mapping(address => uint256) public userP2PBonusReceived;
 
     // Système d'échelonnement P2P - Intervalles mensuels
-    uint256 public constant STAGGERED_THRESHOLD = 1000 * 10**18; // 1000 CVTC
+    uint256 public constant STAGGERED_THRESHOLD = 1000 * 10**2; // 1000 CVTC
     uint256 public constant BASE_MONTH_INTERVAL = 30 days; // 1 mois de base
-    uint256 public constant MAX_STAGGERED_STEPS = 6; // Maximum 6 échelons (1+2+4+8+16+32 = 63 mois ~5 ans)
+    // Plus de limite MAX_STAGGERED_STEPS - la séquence continue jusqu'à épuisement des fonds
 
     struct StaggeredTransfer {
         address sender;
@@ -99,6 +99,7 @@ contract CVTCPremium is Ownable(msg.sender), ReentrancyGuard, ICVTCReserve {
     event StaggeredTransferInitiated(uint256 indexed transferId, address indexed sender, address indexed receiver, uint256 totalAmount, uint256 steps);
     event StaggeredReleaseExecuted(uint256 indexed transferId, address indexed receiver, uint256 amount, uint256 step, uint256 remaining);
     event StaggeredTransferCompleted(uint256 indexed transferId, address indexed receiver, uint256 totalReleased);
+    event PendingReleasesProcessed(uint256 processedCount);
 
     // Fonction pour basculer le mode test
     function toggleTestMode() external onlyOwner {
@@ -259,8 +260,29 @@ contract CVTCPremium is Ownable(msg.sender), ReentrancyGuard, ICVTCReserve {
         return userP2PBonusReceived[user];
     }
 
+    // Fonction d'urgence pour forcer la récupération des fonds (owner only)
+    function emergencyRelease(uint256 transferId) external onlyOwner {
+        StaggeredTransfer storage transfer = staggeredTransfers[transferId];
+        require(transfer.isActive, "Transfer not active");
+
+        uint256 remainingAmount = transfer.remainingAmount;
+
+        // Transférer tout le restant au destinataire
+        require(cvtcToken.transfer(transfer.receiver, remainingAmount), "Emergency transfer failed");
+
+        // Marquer comme terminé
+        transfer.isActive = false;
+        transfer.remainingAmount = 0;
+        transfer.currentStep = transfer.releaseSchedule.length;
+
+        emit StaggeredTransferCompleted(transferId, transfer.receiver, transfer.totalAmount);
+        emit EmergencyReleaseExecuted(transferId, transfer.receiver, remainingAmount);
+    }
+
+    event EmergencyReleaseExecuted(uint256 indexed transferId, address indexed receiver, uint256 amount);
+
     // Fonction principale pour initier un transfert échelonné P2P
-    function initiateStaggeredTransfer(address receiver, uint256 amount) external onlyPremium nonReentrant {
+    function initiateStaggeredTransfer(address receiver, uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be > 0");
         require(receiver != address(0), "Invalid receiver address");
         require(receiver != msg.sender, "Cannot transfer to self");
@@ -297,7 +319,7 @@ contract CVTCPremium is Ownable(msg.sender), ReentrancyGuard, ICVTCReserve {
             uint256[] memory releaseSchedule = _calculateReleaseSchedule(amount);
             uint256 totalSteps = releaseSchedule.length;
 
-            require(totalSteps <= MAX_STAGGERED_STEPS, "Too many release steps");
+            // Plus de limite sur le nombre d'étapes - la séquence continue jusqu'à épuisement
 
             staggeredTransfers[transferId] = StaggeredTransfer({
                 sender: msg.sender,
@@ -318,13 +340,12 @@ contract CVTCPremium is Ownable(msg.sender), ReentrancyGuard, ICVTCReserve {
         userStaggeredTransfers[receiver].push(transferId);
     }
 
-    // Fonction pour exécuter une libération échelonnée
+    // Fonction pour exécuter une libération échelonnée (appelable par n'importe qui)
     function executeStaggeredRelease(uint256 transferId) external nonReentrant {
         StaggeredTransfer storage transfer = staggeredTransfers[transferId];
         require(transfer.isActive, "Transfer not active");
         require(block.timestamp >= transfer.nextReleaseTime, "Too early for next release");
         require(transfer.currentStep < transfer.releaseSchedule.length, "All releases completed");
-        require(msg.sender == transfer.receiver, "Only receiver can execute release");
 
         uint256 releaseAmount = transfer.releaseSchedule[transfer.currentStep];
         require(transfer.remainingAmount >= releaseAmount, "Insufficient remaining amount");
@@ -350,14 +371,72 @@ contract CVTCPremium is Ownable(msg.sender), ReentrancyGuard, ICVTCReserve {
         emit StaggeredReleaseExecuted(transferId, transfer.receiver, releaseAmount, transfer.currentStep, transfer.remainingAmount);
     }
 
-    // Fonction interne pour calculer la séquence d'échelonnement (1, 2, 4, 8, 16, 32...)
+    // Fonction publique pour déclencher automatiquement toutes les libérations dues
+    function processPendingReleases() external nonReentrant {
+        uint256 processed = 0;
+
+        // Parcourir tous les transferts actifs
+        for (uint256 i = 1; i <= staggeredTransferCounter; i++) {
+            StaggeredTransfer storage transfer = staggeredTransfers[i];
+
+            // Tant que le transfert est actif et qu'il y a des libérations dues
+            while (transfer.isActive &&
+                   transfer.currentStep < transfer.releaseSchedule.length &&
+                   block.timestamp >= transfer.nextReleaseTime) {
+
+                uint256 releaseAmount = transfer.releaseSchedule[transfer.currentStep];
+                require(transfer.remainingAmount >= releaseAmount, "Insufficient remaining amount");
+
+                // Mettre à jour l'état
+                transfer.remainingAmount -= releaseAmount;
+                transfer.currentStep++;
+
+                // Programmer la prochaine libération
+                if (transfer.currentStep < transfer.releaseSchedule.length) {
+                    transfer.nextReleaseTime = block.timestamp + _calculateTimeInterval(transfer.currentStep);
+                } else {
+                    transfer.isActive = false;
+                    emit StaggeredTransferCompleted(i, transfer.receiver, transfer.totalAmount);
+                }
+
+                // Transférer les fonds
+                require(cvtcToken.transfer(transfer.receiver, releaseAmount), "CVTC transfer to receiver failed");
+
+                // Mettre à jour les statistiques
+                totalStaggeredReleases += releaseAmount;
+
+                emit StaggeredReleaseExecuted(i, transfer.receiver, releaseAmount, transfer.currentStep, transfer.remainingAmount);
+
+                processed++;
+
+                // Limiter le nombre de traitements par appel pour éviter le gaz excessif
+                if (processed >= 10) break;
+            }
+
+            if (processed >= 10) break;
+        }
+
+        if (processed > 0) {
+            emit PendingReleasesProcessed(processed);
+        }
+    }
+
+    // Fonction interne pour calculer la séquence d'échelonnement (1, 2, 4, 8, 16, 32, 64, 128, 256...)
     function _calculateReleaseSchedule(uint256 totalAmount) internal pure returns (uint256[] memory) {
-        uint256[] memory schedule = new uint256[](MAX_STAGGERED_STEPS);
+        // Estimation du nombre maximum d'étapes nécessaires (log2 du montant maximum)
+        uint256 maxSteps = 0;
+        uint256 tempAmount = totalAmount;
+        while (tempAmount > 0) {
+            tempAmount /= 2;
+            maxSteps++;
+        }
+
+        uint256[] memory schedule = new uint256[](maxSteps);
         uint256 remaining = totalAmount;
-        uint256 stepAmount = 1 * 10**18; // Commencer par 1 CVTC
+        uint256 stepAmount = 1 * 10**2; // Commencer par 1 CVTC (2 décimales)
         uint256 stepCount = 0;
 
-        while (remaining > 0 && stepCount < MAX_STAGGERED_STEPS) {
+        while (remaining > 0) {
             if (stepAmount >= remaining) {
                 // Dernière étape : transférer le reste
                 schedule[stepCount] = remaining;

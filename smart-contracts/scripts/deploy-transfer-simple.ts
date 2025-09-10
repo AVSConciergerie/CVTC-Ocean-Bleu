@@ -14,10 +14,11 @@ async function main() {
 
   console.log(`🪙 Token CVTC: ${cvtcAddress}`);
 
-  const cvtcTransferSimple = await CVTCTransferSimple.deploy(cvtcAddress);
-  await cvtcTransferSimple.deployed();
+   const cvtcTransferSimple = await CVTCTransferSimple.deploy(cvtcAddress);
+   await cvtcTransferSimple.waitForDeployment();
 
-  console.log(`✅ CVTCTransferSimple déployé à: ${cvtcTransferSimple.address}`);
+   const contractAddress = await cvtcTransferSimple.getAddress();
+   console.log(`✅ CVTCTransferSimple déployé à: ${contractAddress}`);
 
   // Sauvegarder l'adresse
   const fs = require("fs");
@@ -26,11 +27,11 @@ async function main() {
   const envPath = path.join(__dirname, "../.env");
   let envContent = fs.readFileSync(envPath, "utf8");
 
-  // Mettre à jour CVTC_PREMIUM_ADDRESS avec le nouveau contrat
-  envContent = envContent.replace(
-    /CVTC_PREMIUM_ADDRESS=0x[0-9a-fA-F]{40}/,
-    `CVTC_PREMIUM_ADDRESS=${cvtcTransferSimple.address}`
-  );
+   // Mettre à jour CVTC_PREMIUM_ADDRESS avec le nouveau contrat
+   envContent = envContent.replace(
+     /CVTC_PREMIUM_ADDRESS=0x[0-9a-fA-F]{40}/,
+     `CVTC_PREMIUM_ADDRESS=${contractAddress}`
+   );
 
   fs.writeFileSync(envPath, envContent);
   console.log(`💾 Adresse CVTCTransferSimple mise à jour dans .env`);
@@ -39,16 +40,16 @@ async function main() {
   const frontendEnvPath = path.join(__dirname, "../../frontend/.env");
   if (fs.existsSync(frontendEnvPath)) {
     let frontendEnvContent = fs.readFileSync(frontendEnvPath, "utf8");
-    frontendEnvContent = frontendEnvContent.replace(
-      /VITE_CVTC_PREMIUM_ADDRESS=0x[0-9a-fA-F]{40}/,
-      `VITE_CVTC_PREMIUM_ADDRESS=${cvtcTransferSimple.address}`
-    );
+     frontendEnvContent = frontendEnvContent.replace(
+       /VITE_CVTC_PREMIUM_ADDRESS=0x[0-9a-fA-F]{40}/,
+       `VITE_CVTC_PREMIUM_ADDRESS=${contractAddress}`
+     );
     fs.writeFileSync(frontendEnvPath, frontendEnvContent);
     console.log(`💾 Adresse mise à jour dans frontend/.env`);
   }
 
   console.log("\n🎉 CVTCTransferSimple déployé avec succès !");
-  console.log(`🔍 Vérifier sur BSCScan: https://testnet.bscscan.com/address/${cvtcTransferSimple.address}`);
+   console.log(`🔍 Vérifier sur BSCScan: https://testnet.bscscan.com/address/${contractAddress}`);
 
   console.log("\n✅ Fonctionnalités du nouveau contrat :");
   console.log("   • AUCUNE notion de Premium");

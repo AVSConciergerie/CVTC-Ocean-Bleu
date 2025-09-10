@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuroraBackground } from '../components/ui/AuroraBackground';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import { Copy } from 'lucide-react';
 
 // --- Helpers & Sous-Composants ---
@@ -178,6 +179,7 @@ const ManagementPage = () => {
     if (!isAuthenticated) {
         return (
             <div className="wallet-container">
+                <ThemeToggle />
                 <motion.div className="card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                     <h1>Admin Login</h1>
                     <form onSubmit={handleLogin}>
@@ -192,6 +194,7 @@ const ManagementPage = () => {
 
     return (
         <div className="wallet-container">
+            <ThemeToggle />
             <AnimatePresence>{isModalOpen && <ApprovalModal user={selectedUser} onClose={handleCloseModal} onApprove={handleApproveUser} adminWallet={adminWallet} setAdminWallet={setAdminWallet} />}</AnimatePresence>
             <header>
                 <h1>Panneau de Gestion</h1>

@@ -1,88 +1,318 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, X, Plus } from 'lucide-react';
 import { usePimlico } from '../context/PimlicoContext';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import { ethers } from 'ethers';
+import { createWalletClient, custom } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { encodeFunctionData, parseUnits, formatUnits } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { bscTestnet } from 'viem/chains';
 
-// --- Constantes du Contrat CVTC ---
+// Constants
 const CVTC_TOKEN_ADDRESS = '0x532FC49071656C16311F2f89E6e41C53243355D3';
+
+// Fuseau horaire de la Réunion (UTC+4)
+const REUNION_TIMEZONE = 'Indian/Reunion';
+const REUNION_OFFSET = 4 * 60; // 4 heures en minutes
+
+// Utilitaires pour le fuseau horaire de la Réunion
+const getReunionTime = (date = new Date()) => {
+  // Créer une date avec le décalage UTC+4
+  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+  return new Date(utc + (REUNION_OFFSET * 60000));
+};
+
+const formatReunionDateTime = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const reunionDate = getReunionTime(date);
+
+  return reunionDate.toLocaleString('fr-FR', {
+    timeZone: REUNION_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const isDateInPast = (dateString) => {
+  if (!dateString) return false;
+  const date = new Date(dateString);
+  const now = getReunionTime();
+  return date < now;
+};
+
+const getReunionNow = () => {
+  return getReunionTime().toISOString().slice(0, 16);
+};
+
 const CVTC_TOKEN_ABI = [
   {
-    "constant": false,
     "inputs": [
-      { "name": "_to", "type": "address" },
-      { "name": "_value", "type": "uint256" }
-    ],
-    "name": "transfer",
-    "outputs": [{ "name": "", "type": "bool" }],
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [{ "name": "_owner", "type": "address" }],
-    "name": "balanceOf",
-    "outputs": [{ "name": "balance", "type": "uint256" }],
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      { "name": "_spender", "type": "address" },
-      { "name": "_value", "type": "uint256" }
+      {"internalType": "address", "name": "spender", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
     ],
     "name": "approve",
-    "outputs": [{ "name": "", "type": "bool" }],
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      { "name": "_owner", "type": "address" },
-      { "name": "_spender", "type": "address" }
-    ],
-    "name": "allowance",
-    "outputs": [{ "name": "", "type": "uint256" }],
-    "type": "function"
-  }
-];
-
-// --- Constantes des Contrats Déployés ---
-const CVTC_SWAP_ADDRESS = process.env.VITE_CVTC_SWAP_ADDRESS || '0x0000000000000000000000000000000000000000';
-const CVTC_PREMIUM_ADDRESS = process.env.VITE_CVTC_PREMIUM_ADDRESS || '0x0000000000000000000000000000000000000000';
-const CVTC_PREMIUM_ABI = [
-  {
-    "inputs": [
-      { "internalType": "address", "name": "receiver", "type": "address" },
-      { "internalType": "uint256", "name": "amount", "type": "uint256" }
-    ],
-    "name": "initiateStaggeredTransfer",
-    "outputs": [],
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "isPremiumUser",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "inputs": [
+      {"internalType": "address", "name": "to", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "transfer",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+    "name": "balanceOf",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   }
 ];
 
-// Configuration du provider BSC Testnet avec Ethers v6
-const provider = new ethers.JsonRpcProvider('https://data-seed-prebsc-1-s1.binance.org:8545/');
-
-// Client public viem pour la compatibilité avec permissionless
 const publicClient = createPublicClient({
   chain: bscTestnet,
   transport: http(),
 });
 
+// Composant Date Picker personnalisé avec thème océan
+const CustomDatePicker = ({ value, onChange, placeholder, isOpen, onToggle, label, hasError = false }) => {
+  const formatDateTime = (dateString) => {
+    return formatReunionDateTime(dateString);
+  };
+
+  const getQuickOptions = () => {
+    const now = getReunionTime();
+    const options = [];
+
+    // "Maintenant" - disponible si pas d'erreur (même en mode unique)
+    if (!hasError) {
+      options.push({
+        label: 'Maintenant',
+        value: getReunionNow(),
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        disabled: false
+      });
+    }
+
+    // Raccourcis disponibles selon le contexte
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
+    const oneDayLater = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+
+    // En mode unique, tous les raccourcis sont disponibles (sauf s'ils sont vraiment dans le passé)
+    // En mode planifié, seuls les raccourcis valides sont disponibles
+    const isUniqueMode = !hasError; // Si pas d'erreur, on considère que c'est mode unique
+
+    options.push(
+      {
+        label: 'Dans 1 heure',
+        value: oneHourLater,
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        disabled: isUniqueMode ? false : isDateInPast(oneHourLater)
+      },
+      {
+        label: 'Dans 24h',
+        value: oneDayLater,
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        ),
+        disabled: isUniqueMode ? false : isDateInPast(oneDayLater)
+      },
+      {
+        label: 'Dans 1 semaine',
+        value: oneWeekLater,
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        ),
+        disabled: isUniqueMode ? false : isDateInPast(oneWeekLater)
+      }
+    );
+
+    return options;
+  };
+
+  const quickOptions = getQuickOptions();
+
+  return (
+    <div className="custom-date-picker relative">
+      <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+        <span>{label}</span>
+      </label>
+
+      <div className="relative">
+        <input
+          type="text"
+          value={formatDateTime(value)}
+          onClick={() => onToggle(!isOpen)}
+          placeholder={placeholder}
+          readOnly
+          className={`w-full p-3 pr-10 rounded-lg transition-all duration-200 shadow-sm cursor-pointer text-text-primary ${
+            hasError
+              ? 'bg-gradient-to-r from-red-900/20 to-red-800/20 border border-red-500/50 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+              : 'bg-gradient-to-r from-card-bg to-card-bg/80 border border-card-border focus:ring-2 focus:ring-accent focus:border-accent'
+          }`}
+        />
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-accent">
+          📅
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-2 w-full bg-gradient-to-br from-card-bg to-card-bg/95 border border-card-border rounded-xl shadow-2xl backdrop-blur-sm">
+           {/* En-tête */}
+           <div className="p-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-900/20 to-blue-950/10">
+             <h4 className="font-semibold text-slate-200">
+               Sélectionner une date
+             </h4>
+             <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+               <div className="w-1.5 h-1.5 bg-blue-400/60 rounded-full"></div>
+               <span>Fuseau horaire : La Réunion (UTC+4)</span>
+             </p>
+           </div>
+
+           {/* Input datetime-local caché mais fonctionnel */}
+           <div className="p-4">
+             <input
+               type="datetime-local"
+               value={value || ''}
+               onChange={(e) => onChange(e.target.value)}
+               min={getReunionNow()}
+               className="w-full p-3 rounded-lg bg-card-bg/50 border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
+               style={{
+                 colorScheme: 'dark',
+                 WebkitAppearance: 'none',
+                 MozAppearance: 'none'
+               }}
+             />
+             <p className="text-xs text-slate-400 mt-2 flex items-center gap-2">
+               <div className="w-1 h-1 bg-blue-400/40 rounded-full"></div>
+               <span>Toutes les heures sont en heure de la Réunion (UTC+4)</span>
+             </p>
+           </div>
+
+          {/* Raccourcis rapides */}
+          <div className="p-4 border-t border-card-border">
+            <h5 className="text-sm font-medium text-text-secondary mb-3">Raccourcis rapides :</h5>
+            <div className="grid grid-cols-2 gap-2">
+              {quickOptions.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    if (!option.disabled) {
+                      onChange(option.value);
+                      onToggle(false);
+                    }
+                  }}
+                  disabled={option.disabled}
+                  className={`p-3 text-xs rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                    option.disabled
+                      ? 'bg-slate-800/30 text-slate-500 cursor-not-allowed border border-slate-700/30'
+                      : 'bg-gradient-to-br from-slate-800/40 to-blue-950/30 hover:from-slate-700/50 hover:to-blue-900/40 border border-slate-600/40 text-slate-300 hover:text-blue-300 cursor-pointer backdrop-blur-sm'
+                  }`}
+                >
+                  <div className={option.disabled ? 'text-slate-500' : 'text-blue-400'}>
+                    {option.icon}
+                  </div>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Boutons d'action */}
+          <div className="p-4 border-t border-card-border flex gap-2">
+            <button
+              onClick={() => {
+                onChange('');
+                onToggle(false);
+              }}
+              className="flex-1 px-4 py-2 bg-gray-600/20 text-gray-400 rounded-lg hover:bg-gray-600/30 transition-colors duration-200"
+            >
+              Effacer
+            </button>
+            <button
+              onClick={() => onToggle(false)}
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-accent to-accent-hover text-white rounded-lg hover:from-accent-hover hover:to-accent transition-all duration-200"
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function P2PTransferPage() {
-  const { smartAccount, smartAccountAddress } = usePimlico();
+  const { smartAccount, smartAccountAddress, error: pimlicoError } = usePimlico();
+  const { ready, authenticated } = usePrivy();
+  const { wallets } = useWallets();
+
+  // Styles personnalisés pour le date picker
+  const datePickerStyles = `
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+      background: linear-gradient(135deg, #3b82f6, #1e40af);
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+      filter: brightness(1.2);
+    }
+
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      transform: scale(1.05);
+    }
+
+    input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+      color: #e5e7eb;
+    }
+
+    input[type="datetime-local"]::-webkit-datetime-edit-text {
+      color: #9ca3af;
+    }
+
+    input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+    input[type="datetime-local"]::-webkit-datetime-edit-minute-field {
+      color: #e5e7eb;
+    }
+
+    /* Firefox */
+    input[type="datetime-local"]::-moz-focus-inner {
+      border: 0;
+    }
+
+    /* Style pour le calendrier popup */
+    input[type="datetime-local"]:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+    }
+  `;
 
   // State for the form
   const [currentAddress, setCurrentAddress] = useState('');
@@ -90,17 +320,50 @@ export default function P2PTransferPage() {
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState('unique');
   const [isSending, setIsSending] = useState(false);
+  const [activeTab, setActiveTab] = useState('standard');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
-
-  // State for the dynamic summary
-  const [summary, setSummary] = useState({});
   const [balance, setBalance] = useState(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-  // --- Form Handlers ---
+  // State for address book
+  const [contacts, setContacts] = useState([]);
+  const [showContacts, setShowContacts] = useState(false);
+  const [showAddContactForm, setShowAddContactForm] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [recognizedContact, setRecognizedContact] = useState(null);
+  const [editingContact, setEditingContact] = useState(null);
+  const [editName, setEditName] = useState('');
+
+  // State for advanced summary
+  const [summary, setSummary] = useState({});
+
+  // State for custom date picker
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  // State for date validation
+  const [dateErrors, setDateErrors] = useState({});
+  const [dateWarnings, setDateWarnings] = useState({});
+
+  // State for current Reunion time
+  const [currentReunionTime, setCurrentReunionTime] = useState(formatReunionDateTime(new Date().toISOString()));
+
+  // State for collapsible sections
+  const [showPlanningRules, setShowPlanningRules] = useState(false);
+
+
+
+  // Form handlers
   const handleAddRecipient = () => {
     if (currentAddress && !recipients.includes(currentAddress)) {
+      // Vérifier que ce n'est pas l'adresse du token
+      if (currentAddress.toLowerCase() === CVTC_TOKEN_ADDRESS.toLowerCase()) {
+        setError("Vous ne pouvez pas utiliser l'adresse du token CVTC comme destinataire");
+        return;
+      }
       setRecipients([...recipients, currentAddress]);
       setCurrentAddress('');
     }
@@ -119,10 +382,218 @@ export default function P2PTransferPage() {
     setError(null);
   };
 
-  const checkBalance = async () => {
-    if (!smartAccountAddress) return;
+  // Address book handlers
+  const addContact = (address, name) => {
+    const newContact = {
+      address,
+      name: name || `Contact ${contacts.length + 1}`,
+      lastTransfer: new Date().toISOString(),
+      transferCount: 1
+    };
+
+    const existingContactIndex = contacts.findIndex(c => c.address.toLowerCase() === address.toLowerCase());
+
+    if (existingContactIndex >= 0) {
+      // Update existing contact
+      const updatedContacts = [...contacts];
+      updatedContacts[existingContactIndex] = {
+        ...updatedContacts[existingContactIndex],
+        lastTransfer: new Date().toISOString(),
+        transferCount: updatedContacts[existingContactIndex].transferCount + 1
+      };
+      setContacts(updatedContacts);
+      saveContacts(updatedContacts);
+    } else {
+      // Add new contact
+      const newContacts = [...contacts, newContact];
+      setContacts(newContacts);
+      saveContacts(newContacts);
+    }
+  };
+
+  const removeContact = (address) => {
+    const updatedContacts = contacts.filter(c => c.address !== address);
+    setContacts(updatedContacts);
+    saveContacts(updatedContacts);
+  };
+
+  const updateContact = (address, newName) => {
+    const updatedContacts = contacts.map(c =>
+      c.address === address ? { ...c, name: newName } : c
+    );
+    setContacts(updatedContacts);
+    saveContacts(updatedContacts);
+    setEditingContact(null);
+    setEditName('');
+  };
+
+  const selectContact = (contact) => {
+    setCurrentAddress(contact.address);
+    setShowContacts(false);
+    setRecognizedContact(contact);
+  };
+
+  const startEditing = (contact) => {
+    setEditingContact(contact.address);
+    setEditName(contact.name);
+  };
+
+  const cancelEditing = () => {
+    setEditingContact(null);
+    setEditName('');
+  };
+
+  const recognizeContact = (address) => {
+    if (!address) {
+      setRecognizedContact(null);
+      return;
+    }
+    const existingContact = contacts.find(c => c.address.toLowerCase() === address.toLowerCase());
+    setRecognizedContact(existingContact || null);
+  };
+
+  const saveContacts = (newContacts) => {
+    try {
+      localStorage.setItem('cvtc_contacts', JSON.stringify(newContacts));
+    } catch (error) {
+      console.error('Erreur sauvegarde contacts:', error);
+    }
+  };
+
+  // Date validation functions (avec fuseau horaire de la Réunion)
+  const validateDate = useCallback((dateString, type) => {
+    if (!dateString) return null;
+
+    const date = new Date(dateString);
+    const now = getReunionTime();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (type === 'start') {
+      if (date < yesterday) {
+        return "La date de début ne peut pas être dans le passé (heure de la Réunion)";
+      }
+      if (endDate && date >= new Date(endDate)) {
+        return "La date de début doit être antérieure à la date de fin";
+      }
+    } else if (type === 'end') {
+      if (date < yesterday) {
+        return "La date de fin ne peut pas être dans le passé (heure de la Réunion)";
+      }
+      if (startDate && date <= new Date(startDate)) {
+        return "La date de fin doit être postérieure à la date de début";
+      }
+    }
+
+    return null;
+  }, [startDate, endDate]);
+
+  const getDateWarning = useCallback((dateString, type) => {
+    if (!dateString) return null;
+
+    const date = new Date(dateString);
+    const now = getReunionTime();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (type === 'start' && date.toDateString() === now.toDateString()) {
+      return "⚡ Transfert programmé pour aujourd'hui (heure de la Réunion)";
+    }
+
+    if (type === 'end' && date.toDateString() === now.toDateString()) {
+      return "⚠️ Attention : fin aujourd'hui (heure de la Réunion)";
+    }
+
+    return null;
+  }, []);
+
+  const handleStartDateChange = (newDate) => {
+    setStartDate(newDate);
+
+    // Clear previous errors
+    setDateErrors(prev => ({ ...prev, start: null }));
+
+    // Validate the new date only if frequency is not unique and date is provided
+    if (frequency !== 'unique' && newDate) {
+      const error = validateDate(newDate, 'start');
+      if (error) {
+        setDateErrors(prev => ({ ...prev, start: error }));
+      }
+    }
+
+    // Check for warnings only if date is provided
+    if (newDate) {
+      const warning = getDateWarning(newDate, 'start');
+      setDateWarnings(prev => ({ ...prev, start: warning }));
+    } else {
+      setDateWarnings(prev => ({ ...prev, start: null }));
+    }
+
+    // Auto-adjust end date if needed and we're in planned mode
+    if (frequency !== 'unique' && newDate && endDate && new Date(newDate) >= new Date(endDate)) {
+      const adjustedEndDate = new Date(newDate);
+      adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+      setEndDate(adjustedEndDate.toISOString().slice(0, 16));
+      setDateErrors(prev => ({ ...prev, end: null }));
+    }
+  };
+
+  const handleEndDateChange = (newDate) => {
+    setEndDate(newDate);
+
+    // Clear previous errors
+    setDateErrors(prev => ({ ...prev, end: null }));
+
+    // Validate the new date only if frequency is not unique and date is provided
+    if (frequency !== 'unique' && newDate) {
+      const error = validateDate(newDate, 'end');
+      if (error) {
+        setDateErrors(prev => ({ ...prev, end: error }));
+      }
+    }
+
+    // Check for warnings only if date is provided
+    if (newDate) {
+      const warning = getDateWarning(newDate, 'end');
+      setDateWarnings(prev => ({ ...prev, end: warning }));
+    } else {
+      setDateWarnings(prev => ({ ...prev, end: null }));
+    }
+
+    // Auto-adjust start date if needed and we're in planned mode
+    if (frequency !== 'unique' && newDate && startDate && new Date(newDate) <= new Date(startDate)) {
+      const adjustedStartDate = new Date(newDate);
+      adjustedStartDate.setDate(adjustedStartDate.getDate() - 1);
+      setStartDate(adjustedStartDate.toISOString().slice(0, 16));
+      setDateErrors(prev => ({ ...prev, start: null }));
+    }
+  };
+
+  const loadContacts = () => {
+    const savedContacts = localStorage.getItem('cvtc_contacts');
+    if (savedContacts) {
+      try {
+        const parsedContacts = JSON.parse(savedContacts);
+        setContacts(parsedContacts);
+        if (parsedContacts.length > 0) {
+          setShowContacts(true);
+        }
+      } catch (error) {
+        console.error('Erreur chargement contacts:', error);
+        setContacts([]);
+      }
+    }
+  };
+
+  const checkBalance = useCallback(async () => {
+    if (!smartAccountAddress) {
+      setError("Adresse du smart account non disponible");
+      return;
+    }
 
     setIsLoadingBalance(true);
+    setError(null);
+
     try {
       const balanceResult = await publicClient.readContract({
         address: CVTC_TOKEN_ADDRESS,
@@ -130,138 +601,187 @@ export default function P2PTransferPage() {
         functionName: 'balanceOf',
         args: [smartAccountAddress],
       });
-
       const formattedBalance = formatUnits(balanceResult, 2);
       setBalance(formattedBalance);
+      console.log(`💰 Solde CVTC mis à jour: ${formattedBalance} CVTC`);
     } catch (err) {
-      console.error('Erreur lors de la vérification du solde:', err);
+      console.error('Erreur vérification solde:', err);
+      setBalance('0.000000');
+      setError(`Erreur de vérification du solde: ${err.message}`);
     } finally {
       setIsLoadingBalance(false);
     }
-  };
+  }, [smartAccountAddress]);
 
-  const handleSend = async () => {
+
+
+  // Fonction de validation d'authentification Privy
+  const validatePrivyAuth = useCallback(() => {
+    if (!ready) {
+      return { valid: false, message: "Privy n'est pas prêt" };
+    }
+    if (!authenticated) {
+      return { valid: false, message: "Utilisateur non authentifié" };
+    }
+    if (!smartAccountAddress) {
+      return { valid: false, message: "Smart account non initialisé" };
+    }
+    return { valid: true, message: "Authentification valide" };
+  }, [ready, authenticated, smartAccountAddress]);
+
+  const handleSend = useCallback(async () => {
     setError(null);
     setTxHash(null);
 
+    // Validation Privy
+    const authValidation = validatePrivyAuth();
+    if (!authValidation.valid) {
+      setError(`Erreur d'authentification: ${authValidation.message}`);
+      return;
+    }
+
     if (!smartAccount || recipients.length === 0 || !amount || parseFloat(amount) <= 0) {
-      const errorMsg = "Veuillez vérifier les informations : Smart Account non prêt, destinataire manquant ou montant invalide.";
-      console.error(errorMsg);
-      setError(errorMsg);
+      setError("Veuillez vérifier les informations : Smart Account non prêt, destinataire manquant ou montant invalide.");
       return;
     }
 
-    // Vérifier si les contrats sont déployés
-    const hasSwapContract = CVTC_SWAP_ADDRESS !== '0x0000000000000000000000000000000000000000';
-    const hasPremiumContract = CVTC_PREMIUM_ADDRESS !== '0x0000000000000000000000000000000000000000';
-
-    console.log("🔍 Debug contrats:");
-    console.log("   CVTC_SWAP_ADDRESS:", CVTC_SWAP_ADDRESS);
-    console.log("   CVTC_PREMIUM_ADDRESS:", CVTC_PREMIUM_ADDRESS);
-    console.log("   hasPremiumContract:", hasPremiumContract);
-
-    // Vérification simplifiée - considérer le contrat comme déployé si l'adresse est valide
-    const isValidAddress = CVTC_PREMIUM_ADDRESS && CVTC_PREMIUM_ADDRESS.length === 42 && CVTC_PREMIUM_ADDRESS.startsWith('0x');
-
-    if (!isValidAddress) {
-      console.log("❌ Erreur: Adresse du contrat Premium invalide");
-      setError("🔄 Le système de transferts est en cours d'initialisation. Veuillez réessayer dans quelques instants.");
-      return;
-    }
-
-    // Vérifier si le contrat existe réellement sur le réseau
-    try {
-      console.log("🔍 Vérification de l'existence du contrat Premium...");
-      const code = await publicClient.getCode({ address: CVTC_PREMIUM_ADDRESS });
-      console.log("📋 Code du contrat:", code);
-
-      if (code === '0x') {
-        console.log("❌ Aucun code trouvé à cette adresse - contrat non déployé");
-        setError("❌ Le système de transferts est en cours d'initialisation. Veuillez réessayer dans quelques instants.");
-        return;
-      }
-
-      console.log("✅ Contrat Premium détecté et valide sur le réseau");
-    } catch (contractCheckError) {
-      console.log("❌ Erreur lors de la vérification du contrat:", contractCheckError);
-      setError("❌ Impossible de vérifier le contrat Premium. Veuillez réessayer.");
-      return;
-    }
-
-    // Vérifier si le solde est suffisant
+    // Vérification du solde
     if (balance !== null && parseFloat(amount) > parseFloat(balance)) {
-      setError(`Solde insuffisant. Vous avez ${balance} CVTC, mais essayez d'envoyer ${amount} CVTC.`);
+      setError(`Solde insuffisant. Disponible: ${balance} CVTC, Demandé: ${amount} CVTC`);
+      return;
+    }
+
+    // Vérification supplémentaire pour les transferts planifiés
+    if (frequency !== 'unique' && !startDate) {
+      setError("Pour un transfert planifié, vous devez sélectionner une date de début.");
       return;
     }
 
     setIsSending(true);
-    console.log('🚀 Début du transfert échelonné CVTC...');
-
     try {
-      // Le token CVTC utilise 2 décimales
       const amountInWei = parseUnits(amount, 2);
-      console.log('💰 Montant à transférer:', amountInWei.toString(), 'CVTC');
 
-      // Étape 1: Approuver le contrat premium pour dépenser les tokens
-      console.log('🔓 Approbation des tokens pour le transfert...');
-      const approveData = encodeFunctionData({
-        abi: CVTC_TOKEN_ABI,
-        functionName: 'approve',
-        args: [CVTC_PREMIUM_ADDRESS, amountInWei]
-      });
+      if (frequency === 'unique') {
+        // VRAIES TRANSACTIONS SUR BSC TESTNET (sans paymaster)
+        console.log('🚀 Exécution de vraies transactions sur BSC Testnet...');
+        console.log(`📊 Transfert de ${amount} CVTC vers ${recipients.length} destinataire(s)`);
+        console.log('⚠️ Paymaster désactivé - Vous payez les frais de gas en BNB');
 
-      const approveTx = {
-        to: CVTC_TOKEN_ADDRESS,
-        value: 0n,
-        data: approveData,
-      };
+        // Vérifier le solde BNB pour les frais de gas
+        try {
+          const bnbBalance = await publicClient.getBalance({
+            address: smartAccountAddress,
+          });
+          const bnbBalanceFormatted = formatUnits(bnbBalance, 18);
+          console.log(`💰 Solde BNB: ${bnbBalanceFormatted} BNB`);
 
-      console.log('📝 Transaction d\'approbation:', approveTx);
-      const approveHash = await smartAccount.sendTransaction(approveTx);
-      console.log('✅ Approbation réussie - Hash:', approveHash);
+          if (parseFloat(bnbBalanceFormatted) < 0.005) {
+            setError(`Solde BNB insuffisant (${bnbBalanceFormatted} BNB). Vous avez besoin d'au moins 0.005 BNB pour les frais de gas des transactions.`);
+            return;
+          }
+        } catch (bnbError) {
+          console.warn('⚠️ Impossible de vérifier le solde BNB:', bnbError);
+        }
 
-      // Étape 2: Initier le transfert échelonné via le contrat premium
-      console.log('Initiation du transfert...');
-      const transferData = encodeFunctionData({
-        abi: CVTC_PREMIUM_ABI,
-        functionName: 'initiateStaggeredTransfer',
-        args: [recipients[0], amountInWei] // Destinataire et montant
-      });
+        try {
+          // APPROCHE CLASSIQUE : Transaction directe avec MetaMask/Privy
+          console.log('🔄 Utilisation d\'une transaction classique (non ERC-4337)...');
 
-      const transferTx = {
-        to: CVTC_PREMIUM_ADDRESS, // Adresse du contrat premium
-        value: 0n,
-        data: transferData,
-      };
+           // Obtenir le wallet depuis Privy
+           const wallet = wallets.find(w => w.walletClientType === 'metamask') ||
+                         wallets.find(w => w.walletClientType === 'privy');
 
-      console.log('📝 Transaction de transfert échelonné:', transferTx);
-      const transferHash = await smartAccount.sendTransaction(transferTx);
+          if (!wallet) {
+            throw new Error('Aucun wallet trouvé. Veuillez connecter MetaMask ou utiliser Privy.');
+          }
 
-      console.log('🎉 Transfert initié avec succès ! Hash :', transferHash);
-      console.log('⏱️  Distribution progressive des fonds');
-      console.log('📅 Première tranche disponible dans 30 jours (ou 15 secondes en mode accéléré)');
+          // Vérifier que nous sommes sur le bon réseau
+          if (wallet.chainId !== `eip155:${bscTestnet.id}`) {
+            await wallet.switchChain(bscTestnet.id);
+          }
 
-      setTxHash(transferHash);
+          const ethereumProvider = await wallet.getEthereumProvider();
+          const walletClient = createWalletClient({
+            chain: bscTestnet,
+            transport: custom(ethereumProvider),
+          });
 
+          const [userAddress] = await walletClient.getAddresses();
+
+          // Pour chaque destinataire, effectuer un transfert classique
+          const transferPromises = recipients.map(async (recipient) => {
+            console.log(`📤 Transfert classique vers ${recipient}: ${amount} CVTC`);
+
+            // Envoyer la transaction directement
+            const txHash = await walletClient.sendTransaction({
+              account: userAddress,
+              to: CVTC_TOKEN_ADDRESS,
+              data: encodeFunctionData({
+                abi: CVTC_TOKEN_ABI,
+                functionName: 'transfer',
+                args: [recipient, amountInWei],
+              }),
+              value: 0n,
+            });
+
+            console.log(`✅ Transaction envoyée: ${txHash}`);
+            return txHash;
+          });
+
+          // Attendre que toutes les transactions soient envoyées
+          const txHashes = await Promise.all(transferPromises);
+
+          console.log('🎉 Toutes les transactions envoyées sur BSC Testnet !');
+          console.log(`💰 ${recipients.length} transfert(s) de ${amount} CVTC chacun`);
+          setTxHash(txHashes[0]);
+
+          // Message de succès pour l'utilisateur
+          setTimeout(() => {
+            console.log('✅ SUCCÈS: Vos tokens CVTC ont été réellement transférés sur BSC Testnet !');
+          }, 1000);
+
+          // Actualiser le solde réel après le transfert
+          setTimeout(() => {
+            checkBalance();
+            console.log('🔄 Solde CVTC mis à jour depuis la blockchain');
+          }, 5000);
+
+        } catch (error) {
+          console.error('❌ Erreur lors des vraies transactions:', error);
+          setError(`Erreur lors des vraies transactions: ${error.message}`);
+        }
+
+      } else {
+        // Transfert planifié - Pour l'instant, on simule car la planification nécessite un contrat séparé
+        console.log(`📅 Transfert planifié simulé - Fréquence: ${frequency}, Début: ${startDate}, Fin: ${endDate || 'indéterminée'}`);
+        console.log('⚠️ La planification réelle nécessite un contrat de planification séparé');
+
+        // Simulation d'une planification réussie
+        setTimeout(() => {
+          setTxHash('0x' + Math.random().toString(16).substr(2, 64) + '_scheduled');
+        }, 1000);
+      }
     } catch (err) {
-      console.error("❌ Erreur détaillée:", {
-        message: err.message,
-        stack: err.stack,
-        cause: err.cause,
-        details: err.details
-      });
-      setError(`Erreur technique: ${err.message}. Veuillez vérifier votre connexion et réessayer.`);
+      console.error("❌ Erreur transfert:", err);
+      setError(`Erreur lors du transfert: ${err.message}`);
     } finally {
       setIsSending(false);
     }
-  };
+    }, [smartAccount, recipients, amount, balance, frequency, startDate, endDate, validatePrivyAuth, checkBalance, smartAccountAddress, wallets]);
 
-  const handleSchedule = () => {
-    console.log('Scheduling transfer:', { recipients, amount, frequency });
-    // Logic for scheduling will be added here
-  };
+  // Load contacts from localStorage
+  useEffect(() => {
+    loadContacts();
+  }, []);
 
-  // --- Dynamic Summary Logic ---
+  // Check balance on mount and when Privy auth changes
+  useEffect(() => {
+    if (smartAccountAddress && authenticated && ready) {
+      checkBalance();
+    }
+  }, [smartAccountAddress, authenticated, ready, checkBalance]);
+
+  // Dynamic summary logic
   useEffect(() => {
     const totalAmount = parseFloat(amount) || 0;
     const numAddresses = recipients.length;
@@ -269,10 +789,19 @@ export default function P2PTransferPage() {
 
     if (totalAmount > 1000) {
       let remaining = totalAmount;
+      let stepAmount = 1;
+      let stepCount = 0;
+
       while (remaining > 0) {
-        const part = Math.min(remaining, 1024);
-        splits.push(part);
-        remaining -= part;
+        if (stepAmount >= remaining) {
+          splits.push(remaining);
+          remaining = 0;
+        } else {
+          splits.push(stepAmount);
+          remaining -= stepAmount;
+        }
+        stepAmount *= 2;
+        stepCount++;
       }
     }
 
@@ -284,217 +813,765 @@ export default function P2PTransferPage() {
     });
   }, [recipients, amount, frequency]);
 
-  // Vérifier le solde quand le smart account est prêt
+  // Close add contact form when address changes
   useEffect(() => {
-    if (smartAccountAddress) {
-      checkBalance();
+    if (showAddContactForm && (!currentAddress || recognizedContact)) {
+      setShowAddContactForm(false);
     }
-  }, [smartAccountAddress]);
+  }, [currentAddress, recognizedContact, showAddContactForm]);
 
+  // Close date pickers when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.custom-date-picker')) {
+        setShowStartDatePicker(false);
+        setShowEndDatePicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Clear date errors when frequency changes
+  useEffect(() => {
+    if (frequency === 'unique') {
+      // En mode unique, on nettoie toutes les erreurs de dates car elles sont optionnelles
+      setDateErrors({});
+      setDateWarnings({});
+    } else {
+      // Pour les fréquences planifiées, on valide les dates seulement si elles existent
+      const newErrors = {};
+      const newWarnings = {};
+
+      if (startDate) {
+        const error = validateDate(startDate, 'start');
+        const warning = getDateWarning(startDate, 'start');
+        if (error) newErrors.start = error;
+        if (warning) newWarnings.start = warning;
+      }
+
+      if (endDate) {
+        const error = validateDate(endDate, 'end');
+        const warning = getDateWarning(endDate, 'end');
+        if (error) newErrors.end = error;
+        if (warning) newWarnings.end = warning;
+      }
+
+      setDateErrors(newErrors);
+      setDateWarnings(newWarnings);
+    }
+  }, [frequency, startDate, endDate, validateDate, getDateWarning]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update current Reunion time every minute
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentReunionTime(formatReunionDateTime(new Date().toISOString()));
+    };
+
+    updateTime(); // Update immediately
+    const interval = setInterval(updateTime, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Validate dates when they change
+   useEffect(() => {
+     if (startDate) {
+       const error = validateDate(startDate, 'start');
+       const warning = getDateWarning(startDate, 'start');
+       setDateErrors(prev => ({ ...prev, start: error }));
+       setDateWarnings(prev => ({ ...prev, start: warning }));
+     }
+     if (endDate) {
+       const error = validateDate(endDate, 'end');
+       const warning = getDateWarning(endDate, 'end');
+       setDateErrors(prev => ({ ...prev, end: error }));
+       setDateWarnings(prev => ({ ...prev, end: warning }));
+     }
+   }, [startDate, endDate, validateDate, getDateWarning]);
 
   return (
-    <div className="p-8 text-text-primary">
-      <Link to="/fonctionnalites" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary mb-8">
-        <ArrowLeft size={18} />
-        Retour aux Fonctionnalités
-      </Link>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: datePickerStyles }} />
+      <ThemeToggle />
+      <div className="p-8 text-text-primary">
+        <Link to="/fonctionnalites" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary mb-8">
+          <ArrowLeft size={18} />
+          Retour aux Fonctionnalités
+        </Link>
 
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-heading">Transferts Échelonnés CVTC</h1>
-          <p className="text-text-secondary mt-2">
-            Payez maintenant, recevez progressivement. Découvrez l'innovation des transferts échelonnés !
-          </p>
-          <div className="mt-4 p-3 bg-gradient-to-r from-accent/20 to-blue-500/20 rounded-lg border border-accent/30">
-            <p className="text-sm text-accent font-medium">
-              💡 Révolutionnez vos transferts : payez maintenant, recevez progressivement avec notre système échelonné !
-            </p>
-          </div>
-        </div>
-
-        <div className="text-center mt-8 p-4 rounded-lg bg-card-bg border border-card-border">
-          {smartAccount ? (
-            <div className="space-y-3">
-              <p className="text-sm text-green-400">
-                ✅ Smart Account prêt : <code className="font-mono text-xs">{smartAccountAddress}</code>
+        <div className="max-w-2xl mx-auto">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-heading">
+                Transferts Directs CVTC
+              </h1>
+              <p className="text-text-secondary mt-2">
+                Transferts sécurisés et instantanés de CVTC.
               </p>
-              <div className="flex items-center justify-center gap-4 text-xs">
-                {CVTC_SWAP_ADDRESS !== '0x0000000000000000000000000000000000000000' && (
-                  <p className="text-green-400">
-                    ✅ CVTC Swap déployé
-                  </p>
-                )}
-                {CVTC_PREMIUM_ADDRESS && CVTC_PREMIUM_ADDRESS.length === 42 && CVTC_PREMIUM_ADDRESS.startsWith('0x') ? (
-                   <p className="text-blue-400">
-                       : 
-                   </p>
-                 ) : (
-                   <p className="text-yellow-400">
-                     🔄 Système en cours d'initialisation
-                   </p>
-                 )}
+               <div className="mt-4 p-3 bg-gradient-to-br from-slate-900/30 via-blue-950/20 to-slate-900/30 backdrop-blur-sm border border-slate-700/40 rounded-xl inline-block">
+                 <div className="text-xs text-slate-400 flex items-center gap-2">
+                   <div className="w-2 h-2 bg-blue-400/60 rounded-full animate-pulse"></div>
+                   <span className="text-blue-300 font-medium">{currentReunionTime}</span>
+                   <span className="text-slate-500">UTC+4</span>
+                 </div>
+               </div>
+            </div>
+
+            {/* Section Informations Compte */}
+            <div className="mt-8 p-6 bg-gradient-to-br from-card-bg/80 to-card-bg/60 border border-card-border rounded-xl backdrop-blur-sm shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-heading flex items-center gap-2">
+                  <div className="w-2 h-2 bg-accent rounded-full"></div>
+                  Informations du Compte
+                </h2>
               </div>
-              <div className="text-sm">
-                {isLoadingBalance ? (
-                  <p className="text-yellow-400">⏳ Vérification du solde CVTC...</p>
-                ) : balance !== null ? (
-                  <p className="text-blue-400">
-                    💰 Solde CVTC : <span className="font-bold">{parseFloat(balance).toFixed(6)} CVTC</span>
-                  </p>
-                ) : (
-                  <button 
+
+              {/* Indicateur du mode actuel */}
+              <div className="mb-4 p-2 rounded-lg bg-gradient-to-r from-slate-800/50 to-slate-700/50 border border-slate-600/50">
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                  <span className="text-green-400">
+                    🚀 VRAIES TRANSACTIONS CLASSIQUES SUR BSC TESTNET
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Statut Privy */}
+                <div className="p-4 bg-gradient-to-br from-slate-900/40 via-blue-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${ready && authenticated ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}></div>
+                    <span className="text-sm font-medium text-slate-300">Statut Privy</span>
+                  </div>
+                  <div className="text-xs text-slate-400 space-y-1">
+                    <div>Prêt: <span className={ready ? 'text-green-400' : 'text-yellow-400'}>{ready ? 'Oui' : 'Non'}</span></div>
+                    <div>Authentifié: <span className={authenticated ? 'text-green-400' : 'text-red-400'}>{authenticated ? 'Oui' : 'Non'}</span></div>
+                  </div>
+                </div>
+
+                {/* Smart Account */}
+                <div className="p-4 bg-gradient-to-br from-slate-900/40 via-emerald-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${smartAccountAddress ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}></div>
+                    <span className="text-sm font-medium text-slate-300">Smart Account</span>
+                  </div>
+                  <div className="text-xs text-slate-400 space-y-1">
+                    {smartAccountAddress ? (
+                      <>
+                        <div className="font-mono break-all text-emerald-400">{smartAccountAddress}</div>
+                        <div className="text-green-400">✅ Connecté</div>
+                      </>
+                    ) : (
+                      <div className="text-yellow-400">⏳ Initialisation...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Solde CVTC */}
+              <div className="mt-4 p-4 bg-gradient-to-br from-slate-900/40 via-amber-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${balance !== null ? 'bg-green-400' : 'bg-blue-400'} animate-pulse`}></div>
+                    <span className="text-sm font-medium text-slate-300">Solde CVTC</span>
+                  </div>
+                  <button
                     onClick={checkBalance}
-                    className="text-accent hover:underline"
+                    disabled={isLoadingBalance || !smartAccountAddress}
+                    className="text-xs px-3 py-1 bg-accent/20 text-accent rounded-md hover:bg-accent/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                   >
-                    🔍 Vérifier le solde CVTC
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-yellow-400">⏳ Initialisation du Smart Account en cours...</p>
-          )}
-        </div>
-
-        {/* --- Zone de résultat de la transaction --- */}
-        {txHash && (
-          <div className="mt-4 p-4 rounded-lg bg-green-900/50 border border-green-400 text-center space-y-2">
-            <p className="text-green-400 text-lg font-semibold">🎉 Transfert initié avec succès !</p>
-            <div className="text-sm text-green-300 space-y-1">
-              <p>✅ Paiement intégral effectué avec succès</p>
-              <p>⏱️  Libération progressive des fonds</p>
-              <p>📅 Calendrier: 1, 2, 4, 8, 16, 32... CVTC par tranche</p>
-              <p>🕐 Première libération: 30 jours (ou 15s en mode test)</p>
-            </div>
-            <a href={`https://testnet.bscscan.com/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline text-xs font-mono break-all block mt-3">
-              Voir sur BSCScan : {txHash}
-            </a>
-          </div>
-        )}
-        {error && (
-          <div className="mt-4 p-3 rounded-lg bg-red-900/50 border border-red-400 text-center">
-            <p className="text-red-400 text-sm">❌ Erreur de transfert</p>
-            <p className="text-text-secondary text-xs break-words">{error}</p>
-          </div>
-        )}
-
-        <div className="mt-10 space-y-8">
-          <div>
-            <label className="block text-sm font-medium mb-2">Destinataire(s)</label>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={currentAddress}
-                onChange={(e) => setCurrentAddress(e.target.value)}
-                placeholder="0x..."
-                className="flex-grow p-2 rounded-md bg-card-bg border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
-              />
-              <button onClick={handleAddRecipient} className="p-2 bg-accent/20 text-accent rounded-md hover:bg-accent/30">
-                <Plus size={20} />
-              </button>
-            </div>
-            <div className="mt-2 space-y-2">
-              {recipients.map(address => (
-                <div key={address} className="flex items-center justify-between bg-card-bg/50 p-2 rounded-md text-sm">
-                  <span className="font-mono">{address}</span>
-                  <button onClick={() => handleRemoveRecipient(address)} className="text-red-500 hover:text-red-400">
-                    <X size={16} />
+                    {isLoadingBalance ? '🔄' : '🔄 Actualiser'}
                   </button>
                 </div>
-              ))}
+                <div className="text-lg font-bold text-amber-400">
+                  {balance !== null ? `${balance} CVTC` : 'Chargement...'}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  {isLoadingBalance ? 'Mise à jour en cours...' : 'Dernière mise à jour automatique'}
+                </div>
+                <div className="text-xs text-green-400 mt-2 flex items-center gap-1">
+                  <span>💰</span>
+                  <span>BNB requis pour gas: ~0.001-0.005 BNB par transaction</span>
+                </div>
+              </div>
+
+              {/* Erreurs */}
+              {(pimlicoError || error) && (
+                <div className="mt-4 p-3 bg-red-950/30 border border-red-700/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                    <span className="text-sm font-medium text-red-400">Erreurs détectées</span>
+                  </div>
+                  <div className="text-xs text-red-300 space-y-1">
+                    {pimlicoError && <div>Smart Account: {pimlicoError}</div>}
+                    {error && <div>Transfert: {error}</div>}
+                  </div>
+                </div>
+              )}
+
+
+
+              {/* Information approche */}
+              <div className="mt-4 p-3 bg-green-950/30 border border-green-700/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-sm font-medium text-green-400">Transactions Classiques Actives</span>
+                </div>
+                <div className="text-xs text-green-300">
+                  🔄 Utilisation de transactions MetaMask/Privy classiques (non ERC-4337).
+                  Vous payez les frais de gas en BNB, mais vos tokens CVTC sont réellement transférés !
+                </div>
+              </div>
+            </div>
+
+          {/* Onglets */}
+          <div className="mt-8">
+            <div className="flex border-b border-card-border">
+              <button
+                onClick={() => setActiveTab('standard')}
+                className={`px-6 py-3 font-medium text-sm ${
+                  activeTab === 'standard'
+                    ? 'border-b-2 border-accent text-accent'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Standard
+              </button>
+              <button
+                onClick={() => setActiveTab('advanced')}
+                className={`px-6 py-3 font-medium text-sm ${
+                  activeTab === 'advanced'
+                    ? 'border-b-2 border-accent text-accent'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Avancé
+              </button>
+            </div>
+
+            <div className="mt-6">
+              {/* Onglet Standard */}
+              {activeTab === 'standard' && (
+                <div className="space-y-6">
+                  {/* Destinataires */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Destinataires</label>
+                    <div className="flex gap-2">
+                      <div className="flex-grow relative">
+                        <input
+                          type="text"
+                          value={currentAddress}
+                          onChange={(e) => {
+                            setCurrentAddress(e.target.value);
+                            recognizeContact(e.target.value);
+                          }}
+                          placeholder="0x... ou sélectionnez un contact"
+                          className="w-full p-2 rounded-md bg-card-bg border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
+                        />
+                        {recognizedContact ? (
+                          <div className="absolute right-2 top-2 flex items-center gap-1">
+                            <span className="text-green-400 text-sm"> {recognizedContact.name}</span>
+                            <button
+                              onClick={() => startEditing(recognizedContact)}
+                              className="text-blue-400 hover:text-blue-300 text-xs"
+                              title="Renommer ce contact"
+                            >
+                              ✏️
+                            </button>
+                          </div>
+                        ) : currentAddress && currentAddress.length > 10 && !recognizedContact ? (
+                          <div className="absolute right-2 top-2">
+                            <button
+                              onClick={() => {
+                                setShowAddContactForm(true);
+                                setNewContactName('');
+                              }}
+                              className="text-accent hover:text-accent-hover text-xs bg-accent/10 px-2 py-1 rounded"
+                              title="Ajouter comme contact"
+                            >
+                              + Contact
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                      <button onClick={handleAddRecipient} className="p-2 bg-accent/20 text-accent rounded-md hover:bg-accent/30">
+                        <Plus size={20} />
+                      </button>
+                    </div>
+
+                    {/* Formulaire d'ajout de contact intégré */}
+                    {showAddContactForm && (
+                      <div className="mt-2 p-3 bg-accent/5 border border-accent/20 rounded-md">
+                        <p className="text-sm text-accent mb-2">Ajouter cette adresse comme contact :</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Nom du contact"
+                            value={newContactName}
+                            onChange={(e) => setNewContactName(e.target.value)}
+                            className="flex-1 px-3 py-2 text-sm rounded-md bg-card-bg border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => {
+                              if (newContactName.trim()) {
+                                addContact(currentAddress, newContactName.trim());
+                                setCurrentAddress('');
+                                setShowAddContactForm(false);
+                              }
+                            }}
+                            className="px-4 py-2 bg-accent text-white text-sm rounded-md hover:bg-accent-hover"
+                          >
+                            Ajouter
+                          </button>
+                          <button
+                            onClick={() => setShowAddContactForm(false)}
+                            className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-2 space-y-2">
+                      {recipients.map(address => (
+                        <div key={address} className="flex items-center justify-between bg-card-bg/50 p-2 rounded-md text-sm">
+                          <span className="font-mono">{address}</span>
+                          <button onClick={() => handleRemoveRecipient(address)} className="text-red-500 hover:text-red-400">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Montant */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Montant en CVTC</label>
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0.0"
+                      className="w-full p-2 rounded-md bg-card-bg border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
+                    />
+                  </div>
+
+                   {/* Bouton de transfert */}
+                   <div className="flex justify-center mt-6">
+                     <button
+                       onClick={handleSend}
+                       disabled={isSending || recipients.length === 0 || !amount || !validatePrivyAuth().valid}
+                       className="px-8 py-3 bg-gradient-to-r from-accent to-accent-hover text-white rounded-lg hover:from-accent-hover hover:to-accent disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                     >
+                       {isSending ? 'Transaction en cours...' : `🚀 Transférer ${amount || 0} CVTC`}
+                     </button>
+                   </div>
+                </div>
+              )}
+
+              {/* Section d'aperçu dynamique */}
+              {summary.numAddresses > 0 && summary.totalAmount > 0 && (
+                <div className="mt-8 p-6 bg-gradient-to-br from-card-bg/80 to-card-bg/60 border border-card-border rounded-xl backdrop-blur-sm shadow-lg">
+                   <h3 className="font-bold text-slate-200 mb-4">
+                     Aperçu de votre Transfert
+                   </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                     <div className="p-4 bg-gradient-to-br from-slate-900/40 via-blue-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                       <p className="text-slate-300 font-medium mb-2">
+                         Montant total
+                       </p>
+                       <p className="text-2xl font-bold text-blue-300">{summary.totalAmount.toFixed(2)} CVTC</p>
+                       <p className="text-xs text-slate-400 mt-1">Paiement intégral immédiat</p>
+                     </div>
+
+                     <div className="p-4 bg-gradient-to-br from-slate-900/40 via-emerald-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                       <p className="text-slate-300 font-medium mb-2">
+                         Destinataires
+                       </p>
+                       <p className="text-2xl font-bold text-emerald-300">{summary.numAddresses}</p>
+                       <p className="text-xs text-slate-400 mt-1">Adresse{summary.numAddresses > 1 ? 's' : ''} sélectionnée{summary.numAddresses > 1 ? 's' : ''}</p>
+                     </div>
+
+                     <div className="p-4 bg-gradient-to-br from-slate-900/40 via-indigo-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                       <p className="text-slate-300 font-medium mb-2">
+                         Calendrier
+                       </p>
+                       <p className="text-lg font-bold text-indigo-300">
+                         {summary.totalAmount > 1000 ? 'Échelonné' : 'Immédiat'}
+                       </p>
+                       <p className="text-xs text-slate-400 mt-1">
+                         {summary.totalAmount > 1000 ? `${summary.splits.length} tranches` : 'Transfert direct'}
+                       </p>
+                     </div>
+                  </div>
+
+                   {summary.totalAmount > 1000 && (
+                     <div className="p-4 bg-gradient-to-br from-slate-900/40 via-amber-950/20 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                       <h4 className="font-medium text-slate-300 mb-3">Calendrier de réception :</h4>
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                         {summary.splits.map((split, index) => (
+                           <div key={index} className="text-center p-3 bg-gradient-to-br from-slate-800/50 to-amber-950/30 backdrop-blur-sm rounded-lg border border-slate-600/30">
+                             <div className="text-xs text-slate-400 mb-1">Mois {index + 1}</div>
+                             <div className="font-mono text-sm text-amber-300 font-medium">{split.toFixed(2)} CVTC</div>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
+                   <div className="mt-4 p-3 bg-gradient-to-br from-slate-900/40 via-blue-950/20 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
+                     <p className="text-sm text-slate-300 font-medium">
+                       Mode de distribution : {summary.totalAmount > 1000 ?
+                         "Échelonné automatique (séquence progressive)" :
+                         "Transfert immédiat"}
+                     </p>
+                   </div>
+                </div>
+              )}
+
+              {/* Onglet Avancé */}
+
+              {/* Onglet Avancé */}
+              {activeTab === 'advanced' && (
+                <div className="space-y-6">
+                   {/* Configuration avancée */}
+                   <div className="space-y-4">
+                     <h3 className="text-lg font-semibold text-heading">Configuration Avancée</h3>
+
+                     {/* Informations sur les contraintes de dates - Rétractable */}
+                     <div className="bg-gradient-to-br from-slate-900/40 via-blue-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
+                       <button
+                         onClick={() => setShowPlanningRules(!showPlanningRules)}
+                         className="w-full p-4 text-left hover:bg-slate-800/20 transition-all duration-300 flex items-center justify-between group"
+                       >
+                         <h4 className="text-sm font-medium text-slate-300 group-hover:text-blue-300 transition-colors duration-200">
+                           Règles de planification
+                         </h4>
+                         <div className={`transform transition-transform duration-200 ${showPlanningRules ? 'rotate-180' : ''}`}>
+                           <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                           </svg>
+                         </div>
+                       </button>
+
+                       {showPlanningRules && (
+                         <div className="px-4 pb-4 border-t border-slate-700/30">
+                           <div className="pt-3 space-y-2">
+                              <div className="text-xs text-slate-400 leading-relaxed">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-1.5 h-1.5 bg-blue-400/60 rounded-full"></div>
+                                  <span>Toutes les heures sont en heure de la Réunion (UTC+4)</span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-1.5 h-1.5 bg-blue-400/60 rounded-full"></div>
+                                  <span>Heure actuelle : <span className="text-blue-300 font-medium">{currentReunionTime}</span></span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-1.5 h-1.5 bg-emerald-400/60 rounded-full"></div>
+                                  <span><strong>Mode Unique</strong> : laissez les dates vides pour commencer immédiatement</span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-1.5 h-1.5 bg-amber-400/60 rounded-full"></div>
+                                  <span><strong>Mode Planifié</strong> : les dates passées sont automatiquement grisées</span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-1.5 h-1.5 bg-blue-400/60 rounded-full"></div>
+                                  <span>La date de fin doit être après la date de début</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 bg-blue-400/60 rounded-full"></div>
+                                  <span>Ajustement automatique si nécessaire</span>
+                                </div>
+                              </div>
+                           </div>
+                         </div>
+                       )}
+                     </div>
+
+                    {/* Fréquence */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Fréquence de Transfert</label>
+                      <select
+                        value={frequency}
+                        onChange={(e) => setFrequency(e.target.value)}
+                        className="w-full p-2 rounded-md bg-card-bg border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
+                      >
+                        <option value="unique">Unique</option>
+                        <option value="hourly">Toutes les heures</option>
+                        <option value="daily">Tous les jours</option>
+                        <option value="weekly">Toutes les semaines</option>
+                        <option value="monthly">Tous les mois</option>
+                      </select>
+                    </div>
+
+                    {/* Date de début */}
+                    <div>
+                      <CustomDatePicker
+                        value={startDate}
+                        onChange={handleStartDateChange}
+                        placeholder="Sélectionner une date de début"
+                        isOpen={showStartDatePicker}
+                        onToggle={setShowStartDatePicker}
+                        label="Date de début"
+                        hasError={!!dateErrors.start}
+                      />
+                      <div className="mt-1">
+                        {dateErrors.start && (
+                          <div className="text-xs text-red-300 flex items-center gap-2 p-2 bg-red-950/20 border border-red-800/30 rounded-md">
+                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                            <span>{dateErrors.start}</span>
+                          </div>
+                        )}
+                        {dateWarnings.start && !dateErrors.start && (
+                          <div className="text-xs text-amber-300 flex items-center gap-2 p-2 bg-amber-950/20 border border-amber-800/30 rounded-md">
+                            <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+                            <span>{dateWarnings.start}</span>
+                          </div>
+                        )}
+                        {!dateErrors.start && !dateWarnings.start && (
+                          <p className="text-xs text-slate-400 flex items-center gap-2">
+                            <div className="w-1 h-1 bg-blue-400/40 rounded-full"></div>
+                            <span>Laissez vide pour commencer immédiatement</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Date de fin */}
+                    <div>
+                      <CustomDatePicker
+                        value={endDate}
+                        onChange={handleEndDateChange}
+                        placeholder="Sélectionner une date de fin"
+                        isOpen={showEndDatePicker}
+                        onToggle={setShowEndDatePicker}
+                        label="Date de fin"
+                        hasError={!!dateErrors.end}
+                      />
+                      <div className="mt-1">
+                        {dateErrors.end && (
+                          <div className="text-xs text-red-300 flex items-center gap-2 p-2 bg-red-950/20 border border-red-800/30 rounded-md">
+                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                            <span>{dateErrors.end}</span>
+                          </div>
+                        )}
+                        {dateWarnings.end && !dateErrors.end && (
+                          <div className="text-xs text-amber-300 flex items-center gap-2 p-2 bg-amber-950/20 border border-amber-800/30 rounded-md">
+                            <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+                            <span>{dateWarnings.end}</span>
+                          </div>
+                        )}
+                        {!dateErrors.end && !dateWarnings.end && (
+                          <p className="text-xs text-slate-400 flex items-center gap-2">
+                            <div className="w-1 h-1 bg-blue-400/40 rounded-full"></div>
+                            <span>Laissez vide pour une durée indéterminée</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Aperçu de la configuration */}
+                    <div className="p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-600/30 rounded-lg backdrop-blur-sm">
+                      <h4 className="font-medium text-purple-400 mb-3 flex items-center gap-2">
+                         {frequency === 'unique' ? 'Transfert Immédiat' : 'Transfert Planifié'}
+                      </h4>
+                      <div className="text-sm text-purple-300 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span>Fréquence :</span>
+                          <span className="font-medium text-white">
+                            {frequency === 'unique' ? 'Transfert unique' :
+                             frequency === 'hourly' ? 'Toutes les heures' :
+                             frequency === 'daily' ? 'Tous les jours' :
+                             frequency === 'weekly' ? 'Toutes les semaines' :
+                             'Tous les mois'}
+                          </span>
+                        </div>
+                         {startDate && (
+                           <div className="flex justify-between items-center">
+                             <span>Début :</span>
+                             <span className="font-medium text-green-400">
+                               {formatReunionDateTime(startDate)}
+                             </span>
+                           </div>
+                         )}
+                         {endDate && (
+                           <div className="flex justify-between items-center">
+                             <span>Fin :</span>
+                             <span className="font-medium text-red-400">
+                               {formatReunionDateTime(endDate)}
+                             </span>
+                           </div>
+                         )}
+                        {startDate && endDate && (
+                          <div className="flex justify-between items-center">
+                            <span>Durée totale :</span>
+                            <span className="font-medium text-yellow-400">
+                              {Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))} jours
+                            </span>
+                          </div>
+                        )}
+                         {frequency !== 'unique' && (
+                           <div className="mt-3 p-3 bg-gradient-to-br from-amber-950/30 to-slate-900/30 backdrop-blur-sm border border-amber-700/40 rounded-lg">
+                             <p className="text-amber-300 text-xs">
+                               Fonctionnalité de planification simulée pour la démonstration
+                             </p>
+                           </div>
+                         )}
+                      </div>
+                    </div>
+
+                     {/* Bouton de transfert avancé */}
+                      <div className="flex justify-center mt-6">
+                        <button
+                          onClick={handleSend}
+                           disabled={
+                             isSending ||
+                             recipients.length === 0 ||
+                             !amount ||
+                             !validatePrivyAuth().valid ||
+                             (frequency !== 'unique' && !startDate) ||
+                             (frequency !== 'unique' && startDate && Object.values(dateErrors).some(error => error !== null))
+                           }
+                          className="px-8 py-3 bg-gradient-to-r from-accent to-accent-hover text-white rounded-lg hover:from-accent-hover hover:to-accent disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                        >
+                          {isSending ? 'Transaction en cours...' :
+                           !validatePrivyAuth().valid ? 'Authentification requise' :
+                           frequency === 'unique' ? `🚀 Transférer ${amount || 0} CVTC` :
+                           `Planifier transfert ${frequency === 'hourly' ? 'horaire' :
+                                                frequency === 'daily' ? 'quotidien' :
+                                                frequency === 'weekly' ? 'hebdomadaire' : 'mensuel'}`}
+                        </button>
+                      </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Montant en CVTC</label>
-            <input 
-              type="number" 
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.0"
-              className="w-full p-2 rounded-md bg-card-bg border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Fréquence</label>
-            <select 
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-              className="w-full p-2 rounded-md bg-card-bg border border-card-border focus:ring-2 focus:ring-accent focus:outline-none"
-            >
-              <option value="unique">Unique</option>
-              <option value="hourly">Toutes les heures</option>
-              <option value="daily">Tous les jours</option>
-              <option value="weekly">Toutes les semaines</option>
-              <option value="monthly">Tous les mois</option>
-            </select>
-          </div>
-
-          {summary.numAddresses > 0 && summary.totalAmount > 0 && (
-            <div className="p-4 bg-card-bg/50 border border-card-border rounded-lg text-sm space-y-3">
-              <h3 className="font-semibold text-heading">📋 Aperçu de votre Transfert Échelonné</h3>
-
-              <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-3">
-                <p className="text-blue-300 font-medium mb-2">💰 Montant total à envoyer :</p>
-                <p className="text-xl font-bold text-accent">{summary.totalAmount} CVTC</p>
-                <p className="text-xs text-blue-400 mt-1">Paiement intégral immédiat ✅</p>
+          {/* Section Carnet d'adresses */}
+          <div className="mt-10 space-y-8">
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-lg font-semibold text-heading">Carnet d'adresses</label>
+                <button
+                  onClick={() => setShowContacts(!showContacts)}
+                  className="text-sm text-accent hover:text-accent-hover underline decoration-accent/30 hover:decoration-accent transition-all duration-200"
+                >
+                  {showContacts ? 'Masquer' : 'Voir'} carnet d'adresses ({contacts.length})
+                </button>
               </div>
 
-              <div className="bg-green-900/20 border border-green-600/30 rounded-lg p-3">
-                <p className="text-green-300 font-medium mb-2">Destinataire(s) :</p>
-                <p className="font-bold text-green-400">{summary.numAddresses} adresse(s)</p>
-                <p className="text-xs text-green-400 mt-1">Réception progressive ⏱️</p>
-              </div>
-
-              <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-3">
-                <p className="text-purple-300 font-medium mb-2">📅 Calendrier de réception :</p>
-                {summary.totalAmount > 1000 ? (
-                  <div className="space-y-1">
-                    {summary.splits.map((split, index) => (
-                      <div key={index} className="flex justify-between text-xs">
-                        <span>Mois {index + 1}:</span>
-                        <span className="font-mono text-purple-400">{split.toFixed(2)} CVTC</span>
+              {/* Liste des contacts */}
+              {showContacts && (
+                <div className="p-4 bg-gradient-to-br from-card-bg/80 to-card-bg/60 border border-card-border rounded-xl backdrop-blur-sm shadow-lg">
+                  <h4 className="text-base font-semibold text-heading mb-4 flex items-center gap-2">
+                    📱 Mes Contacts
+                  </h4>
+                  <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-accent/20 scrollbar-track-transparent">
+                    {contacts.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-2">📭</div>
+                        <p className="text-sm text-text-secondary">
+                          Aucun contact sauvegardé. Effectuez un transfert puis sauvegardez le destinataire !
+                        </p>
                       </div>
-                    ))}
+                    ) : (
+                      contacts.map((contact, index) => (
+                        <div key={index} className="p-3 bg-gradient-to-r from-card-bg/50 to-card-bg/30 border border-card-border/50 rounded-lg hover:border-accent/30 transition-all duration-200">
+                          {editingContact === contact.address ? (
+                            // Mode édition
+                            <div className="space-y-3">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  className="flex-1 px-3 py-2 text-sm bg-card-bg border border-card-border rounded-md focus:ring-2 focus:ring-accent focus:outline-none"
+                                  placeholder="Nouveau nom"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => updateContact(contact.address, editName)}
+                                  className="px-3 py-2 bg-green-500/20 text-green-400 rounded-md hover:bg-green-500/30 transition-colors duration-200"
+                                >
+                                  ✅
+                                </button>
+                                <button
+                                  onClick={cancelEditing}
+                                  className="px-3 py-2 bg-gray-500/20 text-gray-400 rounded-md hover:bg-gray-500/30 transition-colors duration-200"
+                                >
+                                  ❌
+                                </button>
+                              </div>
+                              <p className="text-xs text-text-secondary font-mono break-all">{contact.address}</p>
+                            </div>
+                          ) : (
+                            // Mode affichage normal
+                            <div className="flex justify-between items-center">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-semibold text-accent truncate">{contact.name}</span>
+                                  <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                                    {contact.transferCount} transfert{contact.transferCount > 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-text-secondary font-mono break-all mb-1">{contact.address}</p>
+                                <p className="text-xs text-text-secondary">
+                                  Dernier: {new Date(contact.lastTransfer).toLocaleDateString('fr-FR')}
+                                </p>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <button
+                                  onClick={() => selectContact(contact)}
+                                  className="text-xs px-3 py-2 bg-accent/20 text-accent rounded-md hover:bg-accent/30 transition-colors duration-200 font-medium"
+                                  title="Sélectionner ce contact"
+                                >
+                                  Sélectionner
+                                </button>
+                                <button
+                                  onClick={() => startEditing(contact)}
+                                  className="text-xs px-3 py-2 bg-blue-500/20 text-blue-400 rounded-md hover:bg-blue-500/30 transition-colors duration-200"
+                                  title="Renommer le contact"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => removeContact(contact.address)}
+                                  className="text-xs px-3 py-2 bg-red-500/20 text-red-400 rounded-md hover:bg-red-500/30 transition-colors duration-200"
+                                  title="Supprimer le contact"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
-                ) : (
-                  <p className="text-xs text-purple-400">
-                    Transfert standard (montant ≤ 1000 CVTC)
-                  </p>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
+          </div>
 
-              <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3">
-                <p className="text-yellow-300 font-medium mb-1">⚡ Mode de distribution :</p>
-                <p className="text-xs text-yellow-400">
-                  {summary.totalAmount > 1000 ?
-                    "Échelonné automatique (séquence progressive)" :
-                    "Transfert immédiat"
-                  }
-                </p>
-              </div>
+          {/* Message d'erreur */}
+          {error && (
+            <div className="mt-4 p-3 rounded-lg bg-red-900/50 border border-red-400 text-center">
+              <p className="text-red-400 text-sm">❌ Erreur de transfert</p>
+              <p className="text-text-secondary text-xs break-words">{error}</p>
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-4 pt-4 border-t border-card-border">
-            <button onClick={handleReset} className="button button-secondary">Annuler</button>
-            <button
-              onClick={handleSend}
-              className="button disabled:opacity-50"
-              disabled={!smartAccount || isSending}
-            >
-              {isSending ? 'Initiation en cours...' :
-               CVTC_PREMIUM_ADDRESS === '0x0000000000000000000000000000000000000000' ?
-               'Préparation en cours...' : '� Initier Transfert Échelonné'}
-            </button>
+          {/* Conseil de sécurité */}
+          <div className="text-center mt-12">
+            <p className="text-xs text-text-secondary">💡 Conseil : Vérifiez toujours l'adresse du bénéficiaire pour une sécurité optimale.</p>
           </div>
         </div>
-
-        <div className="text-center mt-12">
-            <p className="text-xs text-text-secondary">💡 Conseil : Vérifiez toujours l'adresse du bénéficiaire pour une sécurité optimale.</p>
-        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -18,7 +18,7 @@ async function main() {
 
   console.log("\n🔎 Vérification sur BSC Testnet...");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
 
   let deployedCount = 0;
   let totalCount = 0;
@@ -51,7 +51,7 @@ async function main() {
             const threshold = await contract.STAGGERED_THRESHOLD();
             const maxSteps = await contract.MAX_STAGGERED_STEPS();
 
-            console.log(`   📊 Seuil échelonnement: ${ethers.utils.formatEther(threshold)} CVTC`);
+            console.log(`   📊 Seuil échelonnement: ${ethers.formatEther(threshold)} CVTC`);
             console.log(`   ⏱️  Maximum d'étapes: ${maxSteps}`);
           }
         } catch (error) {

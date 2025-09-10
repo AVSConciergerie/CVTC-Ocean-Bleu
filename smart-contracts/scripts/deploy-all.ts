@@ -7,7 +7,7 @@ async function main() {
 
   const [deployer] = await ethers.getSigners();
   console.log(`📋 Deploying with account: ${deployer.address}`);
-  console.log(`💰 Account balance: ${ethers.utils.formatEther(await ethers.provider.getBalance(deployer.address))} BNB`);
+  console.log(`💰 Account balance: ${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} BNB`);
 
   // Deploy CVTCSwap first (needed for CVTCCompounder)
   console.log("\n📄 Deploying CVTCSwap...");
@@ -18,24 +18,24 @@ async function main() {
   const cvtcAddress = process.env.CVTC_ADDRESS || "0x0000000000000000000000000000000000000000";
   console.log(`🎯 CVTC Token Address: ${cvtcAddress}`);
 
-  const cvtcSwap = await CVTCSwap.deploy(cvtcAddress);
-  await cvtcSwap.deployed();
-  console.log(`✅ CVTCSwap deployed to: ${cvtcSwap.address}`);
+   const cvtcSwap = await CVTCSwap.deploy(cvtcAddress);
+   await cvtcSwap.waitForDeployment();
+   console.log(`✅ CVTCSwap deployed to: ${await cvtcSwap.getAddress()}`);
 
   // Deploy Lock contract
   console.log("\n🔒 Deploying Lock contract...");
   const Lock = await ethers.getContractFactory("Lock");
   const unlockTime = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60; // 1 year from now
-  const lock = await Lock.deploy(unlockTime); // Pas de valeur envoyée
-  await lock.deployed();
-  console.log(`✅ Lock deployed to: ${lock.address}`);
+   const lock = await Lock.deploy(unlockTime); // Pas de valeur envoyée
+   await lock.waitForDeployment();
+   console.log(`✅ Lock deployed to: ${await lock.getAddress()}`);
 
   // Deploy CVTCPremium
   console.log("\n👑 Deploying CVTCPremium...");
   const CVTCPremium = await ethers.getContractFactory("CVTCPremium");
-  const cvtcPremium = await CVTCPremium.deploy(cvtcAddress, cvtcSwap.address);
-  await cvtcPremium.deployed();
-  console.log(`✅ CVTCPremium deployed to: ${cvtcPremium.address}`);
+   const cvtcPremium = await CVTCPremium.deploy(cvtcAddress, await cvtcSwap.getAddress());
+   await cvtcPremium.waitForDeployment();
+   console.log(`✅ CVTCPremium deployed to: ${await cvtcPremium.getAddress()}`);
 
   // Deploy CVTCCompounderSimple (version simplifiée sans farming)
   console.log("\n⚡ Deploying CVTCCompounderSimple...");
@@ -49,15 +49,15 @@ async function main() {
   console.log(`🎁 Reward Token: ${rewardTokenAddress}`);
   console.log(`💧 WBNB: ${wbnbAddress}`);
 
-  const cvtcCompounder = await CVTCCompounderSimple.deploy(
-    routerAddress,
-    rewardTokenAddress,
-    cvtcAddress,
-    wbnbAddress,
-    cvtcSwap.address
-  );
-  await cvtcCompounder.deployed();
-  console.log(`✅ CVTCCompounder deployed to: ${cvtcCompounder.address}`);
+   const cvtcCompounder = await CVTCCompounderSimple.deploy(
+     routerAddress,
+     rewardTokenAddress,
+     cvtcAddress,
+     wbnbAddress,
+     await cvtcSwap.getAddress()
+   );
+   await cvtcCompounder.waitForDeployment();
+   console.log(`✅ CVTCCompounder deployed to: ${await cvtcCompounder.getAddress()}`);
 
   // Save deployment addresses to a file
   const deploymentInfo = {
@@ -67,25 +67,25 @@ async function main() {
     timestamp: new Date().toISOString(),
     contracts: {
       CVTCSwap: {
-        address: cvtcSwap.address,
+        address: await cvtcSwap.getAddress(),
         constructorArgs: [cvtcAddress]
       },
       CVTCPremium: {
-        address: cvtcPremium.address,
-        constructorArgs: [cvtcAddress, cvtcSwap.address]
+        address: await cvtcPremium.getAddress(),
+        constructorArgs: [cvtcAddress, await cvtcSwap.getAddress()]
       },
       Lock: {
-        address: lock.address,
+        address: await lock.getAddress(),
         constructorArgs: [unlockTime]
       },
       CVTCCompounderSimple: {
-        address: cvtcCompounder.address,
+        address: await cvtcCompounder.getAddress(),
         constructorArgs: [
           routerAddress,
           rewardTokenAddress,
           cvtcAddress,
           wbnbAddress,
-          cvtcSwap.address
+          await cvtcSwap.getAddress()
         ]
       }
     }
@@ -102,10 +102,10 @@ async function main() {
 
   // Also save to .env format for easy copying
   const envContent = `# CVTC Contract Addresses - BSC Testnet
-CVTC_SWAP_ADDRESS=${cvtcSwap.address}
-CVTC_PREMIUM_ADDRESS=${cvtcPremium.address}
-LOCK_ADDRESS=${lock.address}
-CVTC_COMPOUNDER_ADDRESS=${cvtcCompounder.address}
+CVTC_SWAP_ADDRESS=${await cvtcSwap.getAddress()}
+CVTC_PREMIUM_ADDRESS=${await cvtcPremium.getAddress()}
+LOCK_ADDRESS=${await lock.getAddress()}
+CVTC_COMPOUNDER_ADDRESS=${await cvtcCompounder.getAddress()}
 `;
 
   const envFile = path.join(deploymentsDir, "contracts.env");
@@ -114,16 +114,16 @@ CVTC_COMPOUNDER_ADDRESS=${cvtcCompounder.address}
 
   console.log("\n🎉 All contracts deployed successfully!");
   console.log("📋 Contract Addresses:");
-  console.log(`   CVTCSwap: ${cvtcSwap.address}`);
-  console.log(`   CVTCPremium: ${cvtcPremium.address}`);
-  console.log(`   Lock: ${lock.address}`);
-  console.log(`   CVTCCompounder: ${cvtcCompounder.address}`);
+  console.log(`   CVTCSwap: ${await cvtcSwap.getAddress()}`);
+  console.log(`   CVTCPremium: ${await cvtcPremium.getAddress()}`);
+  console.log(`   Lock: ${await lock.getAddress()}`);
+  console.log(`   CVTCCompounder: ${await cvtcCompounder.getAddress()}`);
 
   console.log("\n🔍 Verify contracts on BSCScan:");
-  console.log(`   https://testnet.bscscan.com/address/${cvtcSwap.address}`);
-  console.log(`   https://testnet.bscscan.com/address/${cvtcPremium.address}`);
-  console.log(`   https://testnet.bscscan.com/address/${lock.address}`);
-  console.log(`   https://testnet.bscscan.com/address/${cvtcCompounder.address}`);
+  console.log(`   https://testnet.bscscan.com/address/${await cvtcSwap.getAddress()}`);
+  console.log(`   https://testnet.bscscan.com/address/${await cvtcPremium.getAddress()}`);
+  console.log(`   https://testnet.bscscan.com/address/${await lock.getAddress()}`);
+  console.log(`   https://testnet.bscscan.com/address/${await cvtcCompounder.getAddress()}`);
 }
 
 main().catch((error) => {

@@ -9,9 +9,9 @@ contract CVTCTransferSimple is Ownable(msg.sender), ReentrancyGuard {
     IERC20 public cvtcToken;
 
     // Configuration de la distribution géométrique
-    uint256 public constant GEOMETRIC_THRESHOLD = 1000 * 10**18; // 1000 CVTC
+    uint256 public constant GEOMETRIC_THRESHOLD = 1000 * 10**2; // 1000 CVTC
     uint256 public constant BASE_MONTH_INTERVAL = 30 days;
-    uint256 public constant MAX_STEPS = 6;
+    // Plus de limite MAX_STEPS - la séquence continue jusqu'à épuisement des fonds
 
     // Mode test pour accélérer les délais
     bool public isTestMode = true;
@@ -122,14 +122,22 @@ contract CVTCTransferSimple is Ownable(msg.sender), ReentrancyGuard {
         emit StaggeredReleaseExecuted(transferId, transfer.receiver, releaseAmount, transfer.currentStep, transfer.remainingAmount);
     }
 
-    // Fonction interne pour calculer la distribution géométrique (1, 2, 4, 8, 16, 32...)
+    // Fonction interne pour calculer la distribution géométrique (1, 2, 4, 8, 16, 32, 64, 128, 256...)
     function _calculateGeometricSchedule(uint256 totalAmount) internal pure returns (uint256[] memory) {
-        uint256[] memory schedule = new uint256[](MAX_STEPS);
+        // Estimation du nombre maximum d'étapes nécessaires (log2 du montant maximum)
+        uint256 maxSteps = 0;
+        uint256 tempAmount = totalAmount;
+        while (tempAmount > 0) {
+            tempAmount /= 2;
+            maxSteps++;
+        }
+
+        uint256[] memory schedule = new uint256[](maxSteps);
         uint256 remaining = totalAmount;
-        uint256 stepAmount = 1 * 10**18; // Commencer par 1 CVTC
+        uint256 stepAmount = 1 * 10**2; // Commencer par 1 CVTC (2 décimales)
         uint256 stepCount = 0;
 
-        while (remaining > 0 && stepCount < MAX_STEPS) {
+        while (remaining > 0) {
             if (stepAmount >= remaining) {
                 // Dernière étape : transférer le reste
                 schedule[stepCount] = remaining;

@@ -33,14 +33,14 @@ async function main() {
   try {
     const privateKey = process.env.PRIVATE_KEY;
     if (privateKey) {
-      const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+      const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
       const wallet = new ethers.Wallet(privateKey, provider);
       const balance = await provider.getBalance(wallet.address);
 
       console.log(`   📤 Adresse: ${wallet.address.slice(-6)}`);
-      console.log(`   💰 Solde: ${ethers.utils.formatEther(balance)} BNB`);
+      console.log(`   💰 Solde: ${ethers.formatEther(balance)} BNB`);
 
-      if (balance < ethers.utils.parseEther("0.01")) {
+      if (balance < ethers.parseEther("0.01")) {
         console.log("   ⚠️  Solde faible - Risque d'échec de déploiement");
       } else {
         console.log("   ✅ Fonds suffisants");

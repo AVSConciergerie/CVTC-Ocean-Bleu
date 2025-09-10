@@ -68,15 +68,15 @@ async function runBscMainnetTest() {
     });
     console.log("   => Smart Account Client créé.");
 
-    // 7. Envoi d'une transaction de test (COMMENTÉ POUR SÉCURITÉ)
-    console.log("\n7. Envoi d'une transaction de test (actuellement désactivé)...");
-    // const txHash = await smartAccountClient.sendTransaction({
-    //     to: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045", // Adresse de test Vitalik
-    //     value: 0n,
-    //     data: "0x1234",
-    // });
-    // console.log(`   => Transaction envoyée ! Hash: ${txHash}`);
-    console.log("   => La transaction est commentée pour éviter les coûts. Décommentez pour tester.");
+     // 7. Envoi d'une transaction de test (COMMENTÉ - Paymaster nécessite un solde pour sponsorship)
+     console.log("\n7. Envoi d'une transaction de test (actuellement désactivé)...");
+     // const txHash = await smartAccountClient.sendTransaction({
+     //     to: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045", // Adresse de test Vitalik
+     //     value: 0n,
+     //     data: "0x1234",
+     // });
+     // console.log(`   => Transaction envoyée ! Hash: ${txHash}`);
+     console.log("   => La transaction est commentée car le paymaster Pimlico nécessite un solde pour sponsorship. Décommentez après avoir rechargé le compte Pimlico.");
 
 
     console.log("\n--- ✅ Test de préparation BSC Mainnet terminé avec succès ! ---");
