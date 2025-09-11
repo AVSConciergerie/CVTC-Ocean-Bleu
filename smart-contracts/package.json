@@ -25,7 +25,12 @@
     "redeploy-emergency": "npx hardhat run scripts/redeploy-with-emergency.ts --network bscTestnet",
     "final-recovery": "npx hardhat run scripts/final-recovery.ts",
     "monitor-releases": "./monitor-releases.sh",
-    "setup-cron": "./setup-cron.sh"
+    "setup-cron": "./setup-cron.sh",
+    "deploy-paymaster": "tsx scripts/deploy-paymaster.ts",
+    "test-paymaster": "tsx scripts/test-paymaster.ts",
+    "setup-paymaster": "tsx scripts/setup-paymaster-integration.ts",
+    "deploy-complete": "tsx scripts/deploy-paymaster-complete.ts",
+    "get-test-bnb": "tsx scripts/get-test-bnb.ts"
   },
   "keywords": [],
   "author": "",
@@ -46,6 +51,7 @@
     "hardhat-gas-reporter": "^1.0.10",
     "solidity-coverage": "^0.8.16",
     "ts-node": "^10.9.1",
+    "tsx": "^4.20.5",
     "typechain": "^8.3.2",
     "typescript": "^5.0.0"
   },
@@ -56,6 +62,7 @@
     "dotenv": "^17.2.1",
     "ethers": "^6.8.0",
     "node-fetch": "^3.3.2",
-    "permissionless": "^0.1.0"
+    "permissionless": "^0.1.0",
+    "viem": "^2.37.5"
   }
 }

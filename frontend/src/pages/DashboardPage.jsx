@@ -146,6 +146,9 @@ export default function DashboardPage() {
                     <p className="mt-2 text-text-secondary max-w-prose">
                       Votre passerelle entre le Web3 et le monde réel. Notre mission est simple : amincir la frontière entre ces deux univers pour vous offrir des interactions fluides et intuitives.
                     </p>
+                    <p className="mt-4 text-text-secondary max-w-prose">
+                      Considérez cette plateforme comme votre tableau de bord personnel. C'est ici que vous gérez votre portefeuille, interagissez avec notre écosystème et découvrez comment le numérique peut enrichir votre quotidien.
+                    </p>
                   </div>
 
                   <div className="p-6 border border-card-border rounded-lg bg-card-bg">
@@ -166,10 +169,6 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </div>
-
-                  <p className="text-sm text-text-secondary max-w-prose">
-                    Considérez cette plateforme comme votre tableau de bord personnel. C'est ici que vous gérez votre portefeuille, interagissez avec notre écosystème et découvrez comment le numérique peut enrichir votre quotidien.
-                  </p>
                 </div>
 
                 {/* Colonne de droite : Historique des Transactions */}

@@ -1,4 +1,3 @@
-[dotenv@17.2.2] injecting env (14) from .env -- tip: ⚙️  override existing env vars with { override: true }
 // Sources flattened with hardhat v2.26.3 https://hardhat.org
 
 // SPDX-License-Identifier: MIT
