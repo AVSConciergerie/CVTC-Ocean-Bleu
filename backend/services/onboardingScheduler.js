@@ -37,8 +37,8 @@ async function getRegisteredUsers() {
     try {
         const data = await fs.readFile(USERS_FILE_PATH, 'utf8');
         const users = JSON.parse(data);
-        // Retourne les clés de l'objet, qui sont les adresses de wallet
-        return Object.keys(users);
+        // Retourne les adresses des utilisateurs actifs
+        return users.filter(u => u.isActive).map(u => u.address);
     } catch (error) {
         console.error("Erreur lors de la lecture du fichier des utilisateurs:", error);
         return [];
@@ -49,56 +49,81 @@ async function getRegisteredUsers() {
  * Exécute le batchSwap pour tous les utilisateurs enregistrés et whitelistés.
  */
 async function runDailySwaps() {
-    console.log('Démarrage du processus de swap quotidien...');
-    const users = await getRegisteredUsers();
+    console.log('[SIMULATION] Démarrage du processus de swap quotidien...');
 
-    if (users.length === 0) {
-        console.log('Aucun utilisateur trouvé. Le processus de swap est terminé.');
-        return;
-    }
+    try {
+        const data = await fs.readFile(USERS_FILE_PATH, 'utf8');
+        const users = JSON.parse(data);
+        const activeUsers = users.filter(u => u.isActive);
 
-    console.log(`Trouvé ${users.length} utilisateurs. Vérification de la whitelist et exécution des swaps...`);
-
-    for (const userAddress of users) {
-        try {
-            // 1. Vérifier si l'utilisateur est bien sur la whitelist du contrat
-            const isWhitelisted = await onboardingContract.whitelist(userAddress);
-            if (!isWhitelisted) {
-                console.log(`L'utilisateur ${userAddress} n'est pas sur la whitelist. Swap ignoré.`);
-                continue;
-            }
-
-            // 2. Exécuter le swap
-            console.log(`Exécution du swap pour l'utilisateur ${userAddress}...`);
-            const tx = await onboardingContract.batchSwap(userAddress, {
-                gasLimit: 300000 // Augmenter la limite de gaz pour être sûr
-            });
-            await tx.wait();
-            console.log(`Swap réussi pour ${userAddress}. Hash de la transaction: ${tx.hash}`);
-
-        } catch (error) {
-            console.error(`Erreur lors du swap pour l'utilisateur ${userAddress}:`, error.reason || error.message);
+        if (activeUsers.length === 0) {
+            console.log('[SIMULATION] Aucun utilisateur actif trouvé.');
+            return;
         }
-    }
 
-    console.log('Processus de swap quotidien terminé.');
+        console.log(`🔄 Trouvé ${activeUsers.length} utilisateurs actifs. Exécution des swaps quotidiens...`);
+
+        for (const user of activeUsers) {
+            try {
+                // Vérifier si l'utilisateur est whitelisted sur la blockchain
+                const isWhitelisted = await onboardingContract.whitelist(user.address);
+                if (!isWhitelisted) {
+                    console.log(`⚠️ L'utilisateur ${user.address} n'est pas whitelisted. Swap ignoré.`);
+                    continue;
+                }
+
+                // Exécuter le swap réel quotidien
+                console.log(`🔄 Exécution du swap réel pour ${user.address}...`);
+                const minCvtcOut = 1; // Minimum attendu
+                const tx = await onboardingContract.buy(minCvtcOut, {
+                    value: ethers.parseEther("0.01"), // Swap quotidien
+                    gasLimit: 300000
+                });
+                await tx.wait();
+                console.log(`✅ Swap réussi pour ${user.address}. Hash: ${tx.hash}`);
+
+                // Mettre à jour les données utilisateur
+                user.cvtcReceived = (user.cvtcReceived || 0) + 14.00; // Estimation
+                user.lastDailySwap = new Date().toISOString();
+
+                // Vérifier si l'onboarding de 30 jours est terminé
+                const startDate = new Date(user.onboardingStartDate);
+                const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+                if (new Date() - startDate > thirtyDays) {
+                    console.log(`🏁 Onboarding terminé pour ${user.address}. Désactivation.`);
+                    user.isActive = false;
+                }
+
+            } catch (error) {
+                console.error(`❌ Erreur lors du swap pour ${user.address}:`, error.reason || error.message);
+                console.log(`ℹ️ Cause probable: Pas de liquidité ou fonds insuffisants`);
+            }
+        }
+
+        // Sauvegarder les changements
+        await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2));
+        console.log('[SIMULATION] Processus de swap quotidien terminé.');
+
+    } catch (error) {
+        console.error('[SIMULATION] Erreur lors de la lecture du fichier utilisateurs:', error);
+    }
 }
 
 /**
- * Planifie le cron job pour s'exécuter tous les jours à 00:01 (une minute après minuit).
+ * Planifie le cron job pour s'exécuter tous les jours à 01:01 (heure de La Réunion).
  */
 function startScheduler() {
-    // '1 0 * * *' = tous les jours à 00:01
-    cron.schedule('1 0 * * *', runDailySwaps, {
+    // '1 1 * * *' = tous les jours à 01:01 (heure de La Réunion)
+    cron.schedule('1 1 * * *', runDailySwaps, {
         scheduled: true,
-        timezone: "Europe/Paris"
+        timezone: "Indian/Reunion"
     });
 
-    console.log('🚀 Le planificateur de swap quotidien est démarré. Les swaps seront exécutés tous les jours à 00:01 (Paris).');
+    console.log('🚀 Le planificateur de swap quotidien est démarré. Les swaps seront exécutés tous les jours à 01:01 (heure de La Réunion).');
 
     // Optionnel: Lancer la tâche immédiatement au démarrage pour tester
-    // console.log('Lancement immédiat de la tâche de swap pour le test...');
-    // runDailySwaps();
+    console.log('Lancement immédiat de la tâche de swap pour le test...');
+    runDailySwaps();
 }
 
 export { startScheduler };

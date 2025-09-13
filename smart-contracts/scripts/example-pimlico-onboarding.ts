@@ -1,12 +1,14 @@
-import { ethers } from "hardhat";
-import { createPublicClient, http } from "viem";
+import { ethers } from "ethers";
+import { TypedDataField, TypedDataDomain } from "ethers";
+import { createPublicClient, http, type SignableMessage, type TypedDataDefinition, type TypedData } from "viem";
 import { createSmartAccountClient } from "permissionless";
-// @ts-ignore
-import { toSafeSmartAccount } from "permissionless/accounts";
+import { signerToSafeSmartAccount } from "permissionless/accounts";
 import { createPaymasterClient } from "viem/account-abstraction";
 import { bscTestnet } from "viem/chains";
 
-const ENTRYPOINT_V07_ADDRESS = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+const provider = new ethers.JsonRpcProvider("https://bsc-testnet.publicnode.com");
+
+const ENTRYPOINT_V07_ADDRESS: `0x${string}` = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
 
 async function main() {
   console.log("🎯 Exemple d'utilisation Pimlico - Onboarding Gasless");
@@ -25,12 +27,13 @@ async function main() {
 
   // Créer le client Pimlico pour BSC Testnet
   const pimlicoClient = createPublicClient({
-    transport: http(`https://api.pimlico.io/v2/97/rpc?apikey=${PIMLICO_API_KEY}`),
+    transport: http(`https://api.pimlico.io/v2/binance-testnet/rpc?apikey=${PIMLICO_API_KEY}`),
+    chain: bscTestnet,
   });
 
   // Créer le client paymaster
   const paymasterClient = createPaymasterClient({
-    transport: http(`https://api.pimlico.io/v2/97/rpc?apikey=${PIMLICO_API_KEY}`),
+    transport: http(`https://api.pimlico.io/v2/binance-testnet/rpc?apikey=${PIMLICO_API_KEY}`),
   });
 
   console.log("✅ Clients Pimlico configurés");
@@ -41,12 +44,45 @@ async function main() {
   // Créer un wallet pour l'utilisateur
   const userWallet = new ethers.Wallet(PRIVATE_KEY);
 
+  // Créer le signer pour le Smart Account
+  const signer = {
+    address: userWallet.address as `0x${string}`,
+    signMessage: async ({ message }: { message: SignableMessage }) => {
+      let msgToSign: string | Uint8Array;
+      if (typeof message === 'string' || message instanceof Uint8Array) {
+        msgToSign = message;
+      } else if ('raw' in message) {
+        msgToSign = message.raw;
+      } else {
+        throw new Error('Unsupported message type');
+      }
+      const signature = await userWallet.signMessage(msgToSign);
+      return signature as `0x${string}`;
+    },
+    signTypedData: async <
+      const typedData extends TypedData | Record<string, unknown>,
+      primaryType extends keyof typedData | "EIP712Domain" = keyof typedData
+    >(parameters: TypedDataDefinition<typedData, primaryType>) => {
+      if (parameters.domain === undefined) {
+        throw new Error("Domain is required for typed data signing");
+      }
+      const signature = await userWallet.signTypedData(
+        parameters.domain as TypedDataDomain,
+        parameters.types as Record<string, TypedDataField[]>,
+        parameters.message as unknown as Record<string, any>
+      );
+      return signature as `0x${string}`;
+    },
+    type: 'local' as const,
+    source: 'local' as const,
+    publicKey: userWallet.signingKey.publicKey as `0x${string}`,
+  };
+
   // Créer le Smart Account avec Pimlico
-  const smartAccount = await toSafeSmartAccount({
-    client: pimlicoClient,
-    owners: [userWallet.address],
-    entryPoint: { address: ENTRYPOINT_V07_ADDRESS, version: "0.7" },
-    version: "1.4.1",
+  const smartAccount = await signerToSafeSmartAccount(pimlicoClient, {
+    signer,
+    entryPoint: ENTRYPOINT_V07_ADDRESS as any,
+    safeVersion: "1.4.1",
   });
 
   console.log("✅ Smart Account créé:", smartAccount.address);
@@ -54,7 +90,7 @@ async function main() {
   // === PHASE 3: CONFIGURATION DU CLIENT SMART ACCOUNT ===
   console.log("\n⚙️ Phase 3: Configuration du Smart Account Client");
 
-  const bundlerUrl = `https://api.pimlico.io/v1/97/rpc?apikey=${PIMLICO_API_KEY}`;
+  const bundlerUrl = `https://api.pimlico.io/v1/binance-testnet/rpc?apikey=${PIMLICO_API_KEY}`;
 
   const smartAccountClient = createSmartAccountClient({
     account: smartAccount,
@@ -68,19 +104,21 @@ async function main() {
   console.log("\n📝 Phase 4: Transaction Gasless - Acceptation CGU");
 
   // Préparer l'appel au contrat d'onboarding
-  const onboardingContract = await ethers.getContractAt("CVTCOnboarding", ONBOARDING_ADDRESS);
+  const onboardingInterface = new ethers.Interface([
+    "function acceptOnboardingTerms()"
+  ]);
 
   // Encoder l'appel à acceptOnboardingTerms()
-  const acceptCallData = onboardingContract.interface.encodeFunctionData("acceptOnboardingTerms");
+  const acceptCallData = onboardingInterface.encodeFunctionData("acceptOnboardingTerms");
 
   console.log("📤 Envoi de la transaction gasless...");
 
   // Envoyer la transaction gasless
-  // @ts-ignore
   const userOpHash = await smartAccountClient.sendTransaction({
-    to: ONBOARDING_ADDRESS,
+    to: ONBOARDING_ADDRESS as `0x${string}`,
     data: acceptCallData as `0x${string}`,
-    value: 0n,
+    value: BigInt(0),
+    kzg: undefined,
   });
 
   console.log("✅ Transaction gasless envoyée!");
@@ -90,7 +128,19 @@ async function main() {
   console.log("\n🔍 Phase 5: Vérification du résultat");
 
   // Vérifier que l'utilisateur est maintenant onboardé
-  const userStatus = await onboardingContract.getUserOnboardingStatus(userWallet.address);
+  const result = await provider.call({
+    to: ONBOARDING_ADDRESS,
+    data: onboardingInterface.encodeFunctionData("getUserOnboardingStatus", [userWallet.address])
+  });
+  const decoded = onboardingInterface.decodeFunctionResult("getUserOnboardingStatus(address)", result);
+  const userStatus = {
+    isActive: decoded[0],
+    completed: decoded[1],
+    daysRemaining: decoded[2],
+    cvtcAccumulated: decoded[3],
+    currentPalier: decoded[4],
+    totalRepaid: decoded[5]
+  };
   console.log("=== STATUT UTILISATEUR ===");
   console.log("Actif:", userStatus.isActive);
   console.log("Jours restants:", userStatus.daysRemaining.toString());

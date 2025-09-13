@@ -8,9 +8,9 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
- * @title CVTC ERC-20 Paymaster
- * @notice Paymaster contract that allows users to pay for gas fees using CVTC tokens
- * @dev Based on Pimlico's ERC-20 Paymaster architecture
+ * @title CVTC ERC-20 Paymaster with Reimbursement
+ * @notice Paymaster contract that allows users to pay for gas fees using CVTC tokens with reimbursement system
+ * @dev Based on Pimlico's ERC-20 Paymaster architecture with CVTC priority reimbursement
  */
 contract CVTCPaymaster is Ownable {
     using SafeERC20 for IERC20;
@@ -38,38 +38,58 @@ contract CVTCPaymaster is Ownable {
         bytes paymasterData;
     }
 
+    // Debt tracking structure
+    struct UserDebt {
+        uint256 cvtcOwed;      // CVTC amount owed to user
+        uint256 bnbOwed;       // BNB amount owed to user
+        uint256 lastUpdate;    // Last time debt was updated
+        bool isActive;         // Whether user has active debt
+    }
+
     // Events
     event TokenPaid(address indexed user, uint256 amount, uint256 gasUsed);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 amount);
     event PriceUpdated(address indexed token, uint256 newPrice);
+    event DebtCreated(address indexed user, uint256 cvtcAmount, uint256 bnbAmount);
+    event DebtReimbursed(address indexed user, uint256 cvtcAmount, uint256 bnbAmount);
+    event ReimbursementProcessed(address indexed user, address token, uint256 amount);
 
     // State variables
     mapping(address => bool) public supportedTokens;
     mapping(address => uint256) public tokenPrices; // Price in wei per token unit
+    mapping(address => UserDebt) public userDebts;  // Track user debts
+
     address public immutable entryPoint;
     address public immutable cvtcToken;
+    address public cvtcSwapContract;  // CVTC Swap contract for BNB operations
 
     // Constants
     uint256 public constant POST_OP_GAS = 35000;
     uint256 public constant VERIFICATION_GAS = 150000;
+    uint256 public constant REIMBURSEMENT_CHECK_INTERVAL = 1 hours; // Check every hour
 
     /**
      * @notice Constructor
      * @param _entryPoint Address of the EntryPoint contract
      * @param _cvtcToken Address of the CVTC token
-     * @param _owner Owner of the paymaster
+     * @param _cvtcSwapContract Address of the CVTC Swap contract
      */
     constructor(
         address _entryPoint,
         address _cvtcToken,
-        address _owner
-    ) Ownable(_owner) {
+        address _cvtcSwapContract
+    ) Ownable(msg.sender) {
         entryPoint = _entryPoint;
         cvtcToken = _cvtcToken;
+        cvtcSwapContract = _cvtcSwapContract;
 
         // Add CVTC as supported token by default
         supportedTokens[_cvtcToken] = true;
         tokenPrices[_cvtcToken] = 1e18; // 1 CVTC = 1 ETH equivalent (adjustable)
+
+        // Add native BNB as supported (address 0)
+        supportedTokens[address(0)] = true;
+        tokenPrices[address(0)] = 1e18; // 1 BNB = 1 ETH equivalent
     }
 
     /**
@@ -110,7 +130,7 @@ contract CVTCPaymaster is Ownable {
     }
 
     /**
-     * @notice Executes post-operation logic
+     * @notice Executes post-operation logic with reimbursement system
      * @param mode Mode of execution (0 = successful, 1 = failed, 2 = reverted)
      * @param context Context data from validatePaymasterUserOp
      * @param actualGasCost Actual gas cost
@@ -139,10 +159,83 @@ contract CVTCPaymaster is Ownable {
             actualTokens = requiredTokens;
         }
 
-        // Transfer tokens from user to paymaster
-        IERC20(token).safeTransferFrom(user, address(this), actualTokens);
+        // Process reimbursement with CVTC priority
+        _processReimbursement(user, token, actualTokens, actualGasCost);
 
         emit TokenPaid(user, actualTokens, actualGasCost);
+    }
+
+    /**
+     * @notice Process reimbursement with CVTC priority, BNB fallback, and debt creation
+     * @param user User address
+     * @param token Token used for payment
+     * @param amount Amount to reimburse
+     * @param gasCost Actual gas cost
+     */
+    function _processReimbursement(
+        address user,
+        address token,
+        uint256 amount,
+        uint256 gasCost
+    ) internal {
+        uint256 remainingAmount = amount;
+        uint256 cvtcReimbursed = 0;
+        uint256 bnbReimbursed = 0;
+
+        // Step 1: Try to reimburse with CVTC first (priority)
+        if (remainingAmount > 0) {
+            uint256 cvtcBalance = IERC20(cvtcToken).balanceOf(address(this));
+            if (cvtcBalance > 0) {
+                uint256 reimburseWithCVTC = remainingAmount < cvtcBalance ? remainingAmount : cvtcBalance;
+                IERC20(cvtcToken).safeTransfer(user, reimburseWithCVTC);
+                cvtcReimbursed = reimburseWithCVTC;
+                remainingAmount -= reimburseWithCVTC;
+
+                emit ReimbursementProcessed(user, cvtcToken, reimburseWithCVTC);
+            }
+        }
+
+        // Step 2: Try to reimburse remaining with BNB
+        if (remainingAmount > 0) {
+            uint256 bnbBalance = address(this).balance;
+            if (bnbBalance > 0) {
+                uint256 reimburseWithBNB = remainingAmount < bnbBalance ? remainingAmount : bnbBalance;
+                payable(user).transfer(reimburseWithBNB);
+                bnbReimbursed = reimburseWithBNB;
+                remainingAmount -= reimburseWithBNB;
+
+                emit ReimbursementProcessed(user, address(0), reimburseWithBNB);
+            }
+        }
+
+        // Step 3: If still remaining, create debt (ardoise)
+        if (remainingAmount > 0) {
+            _createDebt(user, remainingAmount, 0); // CVTC debt
+            emit DebtCreated(user, remainingAmount, 0);
+        }
+
+        // If we reimbursed something, emit event
+        if (cvtcReimbursed > 0 || bnbReimbursed > 0) {
+            emit DebtReimbursed(user, cvtcReimbursed, bnbReimbursed);
+        }
+    }
+
+    /**
+     * @notice Create or update user debt
+     * @param user User address
+     * @param cvtcAmount CVTC amount owed
+     * @param bnbAmount BNB amount owed
+     */
+    function _createDebt(address user, uint256 cvtcAmount, uint256 bnbAmount) internal {
+        UserDebt storage debt = userDebts[user];
+
+        if (!debt.isActive) {
+            debt.isActive = true;
+        }
+
+        debt.cvtcOwed += cvtcAmount;
+        debt.bnbOwed += bnbAmount;
+        debt.lastUpdate = block.timestamp;
     }
 
     /**
@@ -254,4 +347,159 @@ contract CVTCPaymaster is Ownable {
 
         tokenAmount = (estimatedGasCost * 1e18) / tokenPrice;
     }
+
+    /**
+     * @notice Check and process pending reimbursements for a user
+     * @param user User address to check
+     */
+    function checkAndProcessReimbursement(address user) external {
+        UserDebt storage debt = userDebts[user];
+
+        if (!debt.isActive || (debt.cvtcOwed == 0 && debt.bnbOwed == 0)) {
+            return;
+        }
+
+        // Check if enough time has passed since last update
+        if (block.timestamp < debt.lastUpdate + REIMBURSEMENT_CHECK_INTERVAL) {
+            return;
+        }
+
+        uint256 cvtcReimbursed = 0;
+        uint256 bnbReimbursed = 0;
+
+        // Try to reimburse CVTC debt
+        if (debt.cvtcOwed > 0) {
+            uint256 cvtcBalance = IERC20(cvtcToken).balanceOf(address(this));
+            if (cvtcBalance > 0) {
+                uint256 reimburseAmount = debt.cvtcOwed < cvtcBalance ? debt.cvtcOwed : cvtcBalance;
+                IERC20(cvtcToken).safeTransfer(user, reimburseAmount);
+                debt.cvtcOwed -= reimburseAmount;
+                cvtcReimbursed = reimburseAmount;
+
+                emit ReimbursementProcessed(user, cvtcToken, reimburseAmount);
+            }
+        }
+
+        // Try to reimburse BNB debt
+        if (debt.bnbOwed > 0) {
+            uint256 bnbBalance = address(this).balance;
+            if (bnbBalance > 0) {
+                uint256 reimburseAmount = debt.bnbOwed < bnbBalance ? debt.bnbOwed : bnbBalance;
+                payable(user).transfer(reimburseAmount);
+                debt.bnbOwed -= reimburseAmount;
+                bnbReimbursed = reimburseAmount;
+
+                emit ReimbursementProcessed(user, address(0), reimburseAmount);
+            }
+        }
+
+        // Update debt status
+        if (debt.cvtcOwed == 0 && debt.bnbOwed == 0) {
+            debt.isActive = false;
+        }
+        debt.lastUpdate = block.timestamp;
+
+        // Emit reimbursement event if something was reimbursed
+        if (cvtcReimbursed > 0 || bnbReimbursed > 0) {
+            emit DebtReimbursed(user, cvtcReimbursed, bnbReimbursed);
+        }
+    }
+
+    /**
+     * @notice Batch process reimbursements for multiple users
+     * @param users Array of user addresses to process
+     */
+    function batchProcessReimbursements(address[] calldata users) external onlyOwner {
+        for (uint256 i = 0; i < users.length; i++) {
+            checkAndProcessReimbursement(users[i]);
+        }
+    }
+
+    /**
+     * @notice Get user debt information
+     * @param user User address
+     * @return cvtcOwed CVTC amount owed
+     * @return bnbOwed BNB amount owed
+     * @return lastUpdate Last update timestamp
+     * @return isActive Whether debt is active
+     */
+    function getUserDebt(address user) external view returns (
+        uint256 cvtcOwed,
+        uint256 bnbOwed,
+        uint256 lastUpdate,
+        bool isActive
+    ) {
+        UserDebt memory debt = userDebts[user];
+        return (debt.cvtcOwed, debt.bnbOwed, debt.lastUpdate, debt.isActive);
+    }
+
+    /**
+     * @notice Manually reimburse user debt (owner only)
+     * @param user User address
+     * @param cvtcAmount CVTC amount to reimburse
+     * @param bnbAmount BNB amount to reimburse
+     */
+    function manualReimbursement(
+        address user,
+        uint256 cvtcAmount,
+        uint256 bnbAmount
+    ) external onlyOwner {
+        UserDebt storage debt = userDebts[user];
+        require(debt.isActive, "Paymaster: no active debt");
+
+        uint256 actualCvtcReimbursed = 0;
+        uint256 actualBnbReimbursed = 0;
+
+        // Reimburse CVTC
+        if (cvtcAmount > 0 && debt.cvtcOwed > 0) {
+            uint256 reimburseAmount = cvtcAmount < debt.cvtcOwed ? cvtcAmount : debt.cvtcOwed;
+            uint256 cvtcBalance = IERC20(cvtcToken).balanceOf(address(this));
+            require(cvtcBalance >= reimburseAmount, "Paymaster: insufficient CVTC balance");
+
+            IERC20(cvtcToken).safeTransfer(user, reimburseAmount);
+            debt.cvtcOwed -= reimburseAmount;
+            actualCvtcReimbursed = reimburseAmount;
+
+            emit ReimbursementProcessed(user, cvtcToken, reimburseAmount);
+        }
+
+        // Reimburse BNB
+        if (bnbAmount > 0 && debt.bnbOwed > 0) {
+            uint256 reimburseAmount = bnbAmount < debt.bnbOwed ? bnbAmount : debt.bnbOwed;
+            uint256 bnbBalance = address(this).balance;
+            require(bnbBalance >= reimburseAmount, "Paymaster: insufficient BNB balance");
+
+            payable(user).transfer(reimburseAmount);
+            debt.bnbOwed -= reimburseAmount;
+            actualBnbReimbursed = reimburseAmount;
+
+            emit ReimbursementProcessed(user, address(0), reimburseAmount);
+        }
+
+        // Update debt status
+        if (debt.cvtcOwed == 0 && debt.bnbOwed == 0) {
+            debt.isActive = false;
+        }
+        debt.lastUpdate = block.timestamp;
+
+        emit DebtReimbursed(user, actualCvtcReimbursed, actualBnbReimbursed);
+    }
+
+    /**
+     * @notice Update CVTC swap contract address
+     * @param _cvtcSwapContract New swap contract address
+     */
+    function updateCvtcSwapContract(address _cvtcSwapContract) external onlyOwner {
+        cvtcSwapContract = _cvtcSwapContract;
+    }
+
+    /**
+     * @notice Allow contract to receive BNB
+     */
+    receive() external payable {}
+
+    /**
+     * @notice Fallback function
+     */
+    fallback() external payable {}
 }

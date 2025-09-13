@@ -3,7 +3,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import OnboardingModal from '../components/OnboardingModal';
+
 import TermsModal from '../components/TermsModal';
 import TransactionHistory from '../components/TransactionHistory';
 import ThemeToggle from '../components/ui/ThemeToggle';
@@ -12,7 +12,7 @@ import { Copy } from 'lucide-react';
 
 export default function DashboardPage() {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const { user } = usePrivy();
@@ -39,43 +39,39 @@ export default function DashboardPage() {
 
     setTermsAccepted(true);
 
-    // Logique existante pour l'onboarding (uniquement pour les nouveaux utilisateurs)
-    if (user && user.createdAt) {
-      const onboardingStatus = localStorage.getItem('onboardingStatus');
-      if (onboardingStatus === 'accepted') return;
-
-      const userCreationTime = new Date(user.createdAt).getTime();
-      const fiveMinutes = 5 * 60 * 1000;
-      const isNewUser = (Date.now() - userCreationTime) < fiveMinutes;
-
-      if (isNewUser) setShowOnboardingModal(true);
+    // Si conditions acceptées mais onboarding pas démarré, le démarrer automatiquement
+    const onboardingStatus = localStorage.getItem('onboardingStatus');
+    if (!onboardingStatus && user?.wallet?.address) {
+      console.log("Démarrage automatique de l'onboarding...");
+      const addressToUse = smartAccountAddress || user.wallet.address;
+      localStorage.setItem('onboardingStatus', 'accepted');
+      localStorage.setItem('onboardingStartDate', new Date().toISOString());
+      axios.post('/api/onboarding/start', { userAddress: addressToUse })
+        .then(() => console.log("Appel API d'onboarding réussi."))
+        .catch(error => console.error("Erreur lors de l'appel API d'onboarding:", error));
     }
-  }, [user]);
+  }, [user, smartAccountAddress]);
 
-  const handleAcceptOnboarding = async () => {
-    console.log("Onboarding accepté");
-    if (user?.wallet?.address) {
-      try {
-        await axios.post('/api/onboarding/start', { userAddress: user.wallet.address });
-        console.log("Appel API d'onboarding réussi.");
-        localStorage.setItem('onboardingStatus', 'accepted');
-      } catch (error) {
-        console.error("Erreur lors de l'appel API d'onboarding:", error);
-      }
-    }
-    setShowOnboardingModal(false);
-  };
 
-  const handleDeclineOnboarding = () => {
-    console.log("Onboarding refusé");
-    setShowOnboardingModal(false);
-  };
 
-  const handleAcceptTerms = () => {
+  const handleAcceptTerms = async () => {
     console.log("✅ Conditions d'utilisation acceptées");
     setTermsStatus(true);
     setShowTermsModal(false);
     setTermsAccepted(true);
+
+    // Démarrer automatiquement l'onboarding
+    const addressToUse = smartAccountAddress || user?.wallet?.address;
+    if (addressToUse) {
+      localStorage.setItem('onboardingStatus', 'accepted');
+      localStorage.setItem('onboardingStartDate', new Date().toISOString());
+      try {
+        await axios.post('/api/onboarding/start', { userAddress: addressToUse });
+        console.log("Appel API d'onboarding réussi.");
+      } catch (error) {
+        console.error("Erreur lors de l'appel API d'onboarding:", error);
+      }
+    }
   };
 
   const handleDeclineTerms = () => {
@@ -108,13 +104,7 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Modal d'onboarding - seulement pour les nouveaux utilisateurs */}
-      {showOnboardingModal && termsAccepted &&
-        <OnboardingModal
-          onAccept={handleAcceptOnboarding}
-          onDecline={handleDeclineOnboarding}
-        />
-      }
+
 
       {/* Écran de blocage - affiché tant que les conditions ne sont pas acceptées */}
       {!termsAccepted && !showTermsModal && (

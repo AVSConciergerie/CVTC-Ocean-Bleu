@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx hardhat test",
     "auto-release": "npx hardhat run scripts/auto-release.ts --network bscTestnet",
     "setup-auto-release": "npx hardhat run scripts/setup-auto-release.ts",
     "test-auto-release": "npx hardhat run scripts/test-auto-release.ts --network bscTestnet",
@@ -30,7 +30,11 @@
     "test-paymaster": "tsx scripts/test-paymaster.ts",
     "setup-paymaster": "tsx scripts/setup-paymaster-integration.ts",
     "deploy-complete": "tsx scripts/deploy-paymaster-complete.ts",
-    "get-test-bnb": "tsx scripts/get-test-bnb.ts"
+    "get-test-bnb": "tsx scripts/get-test-bnb.ts",
+    "deploy-connector": "tsx scripts/deploy-connector.ts",
+    "setup-connector": "tsx scripts/setup-connector.ts",
+    "deploy-and-setup-connector": "tsx scripts/deploy-and-setup-connector.ts",
+    "test-connector": "tsx scripts/test-connector.ts"
   },
   "keywords": [],
   "author": "",
@@ -40,7 +44,8 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.1.1",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.0.0",
     "@types/chai": "^4.3.20",

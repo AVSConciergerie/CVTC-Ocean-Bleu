@@ -7,7 +7,8 @@ import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import cron from 'node-cron';
-import { startScheduler } from './services/onboardingScheduler.js'; // Ajout .js
+import { startScheduler } from '../services/onboardingScheduler.js'; // Ajout .js
+import { getReimbursementService } from '../services/reimbursementService.js'; // Service de remboursement
 
 import fs from 'fs'; // Import de fs pour les opérations de fichiers
 
@@ -20,8 +21,10 @@ app.use(bodyParser.json());
 app.use(cookieParser());
 
 // --- Routes
-import onboardingRoutes from './routes/users.js'; // Ajout .js
+import onboardingRoutes from '../routes/onboarding.js'; // Ajout .js
+import paymasterRoutes from '../routes/paymaster.js'; // Route paymaster fallback
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/paymaster', paymasterRoutes);
 
 // --- Auth Middleware
 function requireAdminAuth(req, res, next) {
@@ -124,9 +127,27 @@ app.post("/api/admin/logout", requireAdminAuth, (req, res) => {
 });
 
 // --- Start Daily Swap Scheduler
-// startScheduler(); // Commenté car la fonction n'est pas définie ici
+startScheduler();
+
+// --- Start Reimbursement Service
+const reimbursementService = getReimbursementService();
+reimbursementService.start();
+
+// Gestion propre de l'arrêt
+process.on('SIGINT', () => {
+  console.log('🛑 Arrêt du serveur...');
+  reimbursementService.cleanup();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('🛑 Arrêt du serveur...');
+  reimbursementService.cleanup();
+  process.exit(0);
+});
 
 // --- Start Server
 app.listen(PORT, () => {
   console.log(`Admin API running on http://localhost:${PORT}`);
+  console.log(`🔄 Service de remboursement automatique: ${reimbursementService.isRunning ? 'ACTIF' : 'INACTIF'}`);
 });

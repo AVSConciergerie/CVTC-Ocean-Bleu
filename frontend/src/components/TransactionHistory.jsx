@@ -35,11 +35,11 @@ const TransactionHistory = ({ smartAccountAddress }) => {
         <span>Chargement de l'historique...</span>
       </div>}
 
-      <div className="flex justify-center pt-4">
-        <a href="https://testnet.binance.org/faucet-smart" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent text-white font-medium rounded-md transition-colors">
-          Obtenir des BNB Testnet
-        </a>
-      </div>
+       <div className="flex justify-center pt-4">
+         <a href={`https://testnet.bscscan.com/address/${smartAccountAddress}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent text-white font-medium rounded-md transition-colors">
+           Voir les Transactions sur BSC Testnet
+         </a>
+       </div>
     </div>
   );
 };

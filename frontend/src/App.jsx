@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ManagementPage from './pages/ManagementPage';
 import OnboardingPage from './pages/OnboardingPage';
+import OnboardingDetailsPage from './pages/OnboardingDetailsPage';
 import InformationPage from './pages/InformationPage';
 import FonctionnalitesPage from './pages/FonctionnalitesPage';
 import P2PTransferPage from './pages/P2PTransferPage';
@@ -31,6 +32,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/information" element={<InformationPage />} />
         <Route path="/onboarding/:mode" element={<OnboardingPage />} />
+        <Route path="/onboarding-details" element={<OnboardingDetailsPage />} />
 
         {/* Routes protégées nécessitant authentification */}
         <Route path="/dashboard" element={

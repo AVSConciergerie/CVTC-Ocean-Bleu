@@ -1,61 +1,74 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  console.log("🔍 Vérification de l'existence du contrat CVTCTransferSimple...");
+  console.log("🔍 VÉRIFICATION CONTRAT SUR BSCSCAN");
+  console.log("===================================");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const SWAP_ADDRESS = "0x9fD15619a90005468F02920Bb569c95759Da710C";
+  const CVTC_TOKEN_ADDRESS = "0x532FC49071656C16311F2f89E6e41C53243355D3";
 
-  // Adresse du contrat déployé
-  const contractAddress = "0xAEfFf843E171A6f022F0D06Bfd85998275a8D2D6";
+  console.log(`📍 Adresse contrat swap: ${SWAP_ADDRESS}`);
+  console.log(`🪙 Adresse token CVTC: ${CVTC_TOKEN_ADDRESS}`);
 
-  console.log(`📍 Adresse à vérifier: ${contractAddress}`);
+  console.log("\\n📋 INSTRUCTIONS POUR VÉRIFICATION BSCSCAN:");
+  console.log("==========================================");
 
-  try {
-    // Vérifier si le contrat existe
-    const code = await provider.getCode(contractAddress);
-    console.log(`📋 Longueur du code: ${code.length} caractères`);
+  console.log("\\n1️⃣ ALLER SUR BSCSCAN TESTNET:");
+  console.log(`🌐 https://testnet.bscscan.com/address/${SWAP_ADDRESS}#code`);
 
-    if (code === '0x') {
-      console.log('❌ AUCUN CODE trouvé à cette adresse');
-      console.log('🔄 Le contrat n\'existe pas ou n\'est pas déployé');
-      return;
-    }
+  console.log("\\n2️⃣ CLIQUER 'VERIFY AND PUBLISH':");
+  console.log("   - Sélectionner 'Solidity (Single file)'");
+  console.log("   - Compiler version: v0.8.0+commit.c7dfd78e");
 
-    if (code.length > 2) {
-      console.log('✅ Code détecté - Le contrat existe !');
+  console.log("\\n3️⃣ COLLER LE CODE SOURCE:");
+  console.log("   - Ouvrir le fichier: smart-contracts/contracts/CVTCSwap.sol");
+  console.log("   - Copier tout le contenu");
+  console.log("   - Coller dans 'Enter the Solidity Contract Code below'");
 
-      // Essayer de récupérer des informations basiques
-      const balance = await provider.getBalance(contractAddress);
-      console.log(`💰 Solde du contrat: ${ethers.formatEther(balance)} BNB`);
+  console.log("\\n4️⃣ PARAMÈTRES DE CONSTRUCCION:");
+  console.log("   - Contract Name: CVTCSwap");
+  console.log("   - Include Nightly Builds: No");
+  console.log("   - Compiler: v0.8.0+commit.c7dfd78e");
+  console.log("   - Optimization: Yes");
+  console.log("   - Runs: 200");
 
-      // Essayer d'appeler une fonction de lecture
-      const tokenAddress = "0x532FC49071656C16311F2f89E6e41C53243355D3";
-      const tokenAbi = [
-        "function balanceOf(address) view returns (uint256)"
-      ];
+  console.log("\\n5️⃣ ARGUMENTS DU CONSTRUCTEUR:");
+  console.log("   - Constructor Arguments (ABI-encoded):");
+  console.log(`   ${CVTC_TOKEN_ADDRESS}`);
 
-      const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, provider);
-      const contractCVTCBalance = await tokenContract.balanceOf(contractAddress);
-      console.log(`🪙 Solde CVTC du contrat: ${ethers.formatUnits(contractCVTCBalance, 2)} CVTC`);
+  console.log("\\n6️⃣ VÉRIFIER:");
+  console.log("   - Cliquer 'Verify and Publish'");
+  console.log("   - Attendre la confirmation");
 
-    } else {
-      console.log('⚠️ Code minimal détecté (peut-être un EOA)');
-    }
+  console.log("\\n🎯 APRÈS VÉRIFICATION:");
+  console.log("=====================");
+  console.log("✅ Les fonctions seront visibles dans l'onglet 'Write Contract'");
+  console.log("✅ Vous pourrez appeler emergencyInitialize() ou autres fonctions");
+  console.log("✅ Initialisation du ratio 0.00002/2.5B possible");
 
-  } catch (error: any) {
-    console.error('❌ Erreur lors de la vérification:', error.message);
+  console.log("\\n🔧 COMMANDES HARDHAT ALTERNATIVES:");
+  console.log("==================================");
 
-    if (error.message.includes('network')) {
-      console.log('🌐 Problème de connexion réseau');
-    } else if (error.message.includes('timeout')) {
-      console.log('⏰ Timeout - vérifier la connexion');
-    }
-  }
+  console.log("\\nSi vous préférez utiliser Hardhat:");
+  console.log("1. Installer hardhat-etherscan:");
+  console.log(`npm install --save-dev @nomiclabs/hardhat-etherscan`);
 
-  console.log('\n🎯 Vérification terminée');
+  console.log("\\n2. Configurer hardhat.config.ts:");
+  console.log(`// Ajouter dans hardhat.config.ts
+etherscan: {
+  apiKey: process.env.BSCSCAN_API_KEY
+}`);
+
+  console.log("\\n3. Vérifier via Hardhat:");
+  console.log(`npx hardhat verify --network bscTestnet ${SWAP_ADDRESS} ${CVTC_TOKEN_ADDRESS}`);
+
+  console.log("\\n🚀 PRÊT POUR L'INITIALISATION FINALE!");
+  console.log("=====================================");
+  console.log("Une fois vérifié, nous pourrons:");
+  console.log("✅ Voir toutes les fonctions du contrat");
+  console.log("✅ Appeler emergencyInitialize()");
+  console.log("✅ Atteindre le ratio exact 0.00002/2.5B");
+  console.log("✅ Lancer l'onboarding avec volatilité maximale");
 }
 
-main().catch((error) => {
-  console.error("❌ Erreur:", error);
-  process.exitCode = 1;
-});
+main().catch(console.error);

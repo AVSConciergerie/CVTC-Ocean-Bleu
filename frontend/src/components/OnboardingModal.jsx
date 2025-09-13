@@ -1,7 +1,10 @@
 import React from 'react';
-import { ShieldCheck, X } from 'lucide-react';
+import { ShieldCheck, X, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function OnboardingModal({ onAccept, onDecline }) {
+  const navigate = useNavigate();
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-card-bg border border-card-border rounded-lg shadow-xl p-8 max-w-md w-full m-4">
@@ -19,6 +22,17 @@ export default function OnboardingModal({ onAccept, onDecline }) {
         <div className="mt-6 space-y-4 text-text-secondary max-h-60 overflow-y-auto pr-2">
           <p>En continuant, vous acceptez de démarrer le processus d'onboarding.</p>
           <p>Ce processus implique l'interaction avec un smart contract pour lier votre portefeuille à notre écosystème. Chaque jour, une opération automatisée sera effectuée en votre nom pour échanger une petite quantité de BNB contre des jetons CVTC, conformément à notre stratégie de croissance et de distribution.</p>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+            <button
+              onClick={() => navigate('/onboarding-details')}
+              className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors text-sm font-medium"
+            >
+              <ExternalLink size={16} />
+              En savoir plus sur le programme d'onboarding
+            </button>
+          </div>
+
           <p className="font-semibold text-text-primary">Conditions principales :</p>
           <ul className="list-disc list-inside space-y-1 text-sm">
             <li>Vous autorisez un swap quotidien de 0.0002 BNB vers le jeton CVTC.</li>

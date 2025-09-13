@@ -10,6 +10,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { encodeFunctionData, parseUnits, formatUnits } from 'viem';
 import { createPublicClient, http } from 'viem';
 import { bscTestnet } from 'viem/chains';
+import PaymasterUtils from '../services/paymasterUtils';
 
 // Import du contrat CVTCScheduler (temporaire - sera remplacé par l'ABI réelle)
 const CVTC_SCHEDULER_ABI = [
@@ -34,6 +35,7 @@ const CVTC_SCHEDULER_ADDRESS = '0x0000000000000000000000000000000000000000'; // 
 
 // Constants
 const CVTC_TOKEN_ADDRESS = '0x532FC49071656C16311F2f89E6e41C53243355D3';
+const PAYMASTER_ADDRESS = '0x950c9E7ea88beF525E5fFA072E7F092E2B0f7516'; // Adresse correcte du paymaster déployé
 
 // Fuseau horaire de la Réunion (UTC+4)
 const REUNION_TIMEZONE = 'Indian/Reunion';
@@ -293,6 +295,9 @@ export default function P2PTransferPage() {
   const { ready, authenticated } = usePrivy();
   const { wallets } = useWallets();
 
+  // Initialisation du paymaster
+  const [paymasterUtils, setPaymasterUtils] = useState(null);
+
   // Styles personnalisés pour le date picker
   const datePickerStyles = `
     input[type="datetime-local"]::-webkit-calendar-picker-indicator {
@@ -371,9 +376,30 @@ export default function P2PTransferPage() {
 
   // State for current Reunion time
   const [currentReunionTime, setCurrentReunionTime] = useState(formatReunionDateTime(new Date().toISOString()));
-
-  // State for collapsible sections
   const [showPlanningRules, setShowPlanningRules] = useState(false);
+
+  // Initialisation du paymaster
+  useEffect(() => {
+    if (smartAccountAddress) {
+      // Créer un provider ethers approprié pour le contrat paymaster
+      const ethersProvider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+
+      const paymasterContract = new ethers.Contract(
+        PAYMASTER_ADDRESS,
+        [
+          'function getPaymasterData(address) view returns (bytes)',
+          'function getPaymasterStubData(address) view returns (bytes)',
+          'function getTokenQuote(address, uint256) view returns (uint256)',
+          'function supportedTokens(address) view returns (bool)'
+        ],
+        ethersProvider
+      );
+
+      console.log('🔧 Contrat paymaster initialisé avec provider ethers:', PAYMASTER_ADDRESS);
+      const utils = new PaymasterUtils(paymasterContract, CVTC_TOKEN_ADDRESS);
+      setPaymasterUtils(utils);
+    }
+  }, [smartAccountAddress]);
 
 
 
@@ -733,82 +759,89 @@ export default function P2PTransferPage() {
       const amountInWei = parseUnits(amount, 2);
 
       if (frequency === 'unique') {
-        // VRAIES TRANSACTIONS SUR BSC TESTNET (sans paymaster)
-        console.log('🚀 Exécution de vraies transactions sur BSC Testnet...');
+        // VRAIES TRANSACTIONS SUR BSC TESTNET (avec paymaster ERC-4337)
+        console.log('🚀 Exécution de vraies transactions sur BSC Testnet avec paymaster...');
         console.log(`📊 Transfert de ${amount} CVTC vers ${recipients.length} destinataire(s)`);
-        console.log('⚠️ Paymaster désactivé - Vous payez les frais de gas en BNB');
+        console.log('💰 Paymaster activé - Vous payez les frais de gas en CVTC');
 
-        // Vérifier le solde BNB pour les frais de gas
+        // Vérifier que le paymaster est disponible
+        if (!paymasterUtils) {
+          setError('Paymaster non initialisé. Veuillez réessayer.');
+          return;
+        }
+
+        // Calculer les frais de gas estimés
         try {
-          const bnbBalance = await publicClient.getBalance({
-            address: smartAccountAddress,
-          });
-          const bnbBalanceFormatted = formatUnits(bnbBalance, 18);
-          console.log(`💰 Solde BNB: ${bnbBalanceFormatted} BNB`);
+          const gasEstimate = 100000n; // Estimation du gas pour un transfert
+          const paymasterQuote = await paymasterUtils.calculateTokenAmount(gasEstimate);
+          console.log(`💰 Frais de gas estimés: ${paymasterQuote.tokenAmount} CVTC`);
 
-          if (parseFloat(bnbBalanceFormatted) < 0.005) {
-            setError(`Solde BNB insuffisant (${bnbBalanceFormatted} BNB). Vous avez besoin d'au moins 0.005 BNB pour les frais de gas des transactions.`);
+          // Vérifier que l'utilisateur a assez de CVTC pour les frais
+          const balanceCheck = await paymasterUtils.checkUserBalance(smartAccountAddress, paymasterQuote.quote);
+          if (!balanceCheck.hasEnough) {
+            setError(`Solde CVTC insuffisant pour les frais de gas. Disponible: ${balanceCheck.balance} CVTC, Besoin: ${balanceCheck.required} CVTC`);
             return;
           }
-        } catch (bnbError) {
-          console.warn('⚠️ Impossible de vérifier le solde BNB:', bnbError);
+        } catch (quoteError) {
+          console.warn('⚠️ Impossible de calculer les frais de gas:', quoteError);
         }
 
         try {
-          // APPROCHE CLASSIQUE : Transaction directe avec MetaMask/Privy
-          console.log('🔄 Utilisation d\'une transaction classique (non ERC-4337)...');
+          // APPROCHE ERC-4337 : Utilisation du smart account avec paymaster
+          console.log('🔄 Utilisation du smart account ERC-4337 avec paymaster...');
 
-           // Obtenir le wallet depuis Privy
-           const wallet = wallets.find(w => w.walletClientType === 'metamask') ||
-                         wallets.find(w => w.walletClientType === 'privy');
-
-          if (!wallet) {
-            throw new Error('Aucun wallet trouvé. Veuillez connecter MetaMask ou utiliser Privy.');
+          if (!smartAccount) {
+            throw new Error('Smart account non disponible. Veuillez vous reconnecter.');
           }
 
-          // Vérifier que nous sommes sur le bon réseau
-          if (wallet.chainId !== `eip155:${bscTestnet.id}`) {
-            await wallet.switchChain(bscTestnet.id);
-          }
+           // Obtenir les données paymaster
+           const paymasterData = await paymasterUtils.getPaymasterData();
+           console.log('📋 Données paymaster obtenues:', paymasterData);
+           console.log('📋 Type des données:', typeof paymasterData);
+           console.log('📋 Longueur des données:', paymasterData ? paymasterData.length : 'undefined');
 
-          const ethereumProvider = await wallet.getEthereumProvider();
-          const walletClient = createWalletClient({
-            chain: bscTestnet,
-            transport: custom(ethereumProvider),
-          });
+           // Pour chaque destinataire, créer une UserOperation
+           const userOps = recipients.map((recipient) => {
+             // Utiliser encodeFunctionData correctement
+             const encodedData = encodeFunctionData({
+               abi: CVTC_TOKEN_ABI,
+               functionName: 'transfer',
+               args: [recipient, amountInWei],
+             });
 
-          const [userAddress] = await walletClient.getAddresses();
+             console.log(`🔧 UserOp pour ${recipient}:`, {
+               target: CVTC_TOKEN_ADDRESS,
+               data: encodedData,
+               dataLength: encodedData.length,
+               value: 0n
+             });
 
-          // Pour chaque destinataire, effectuer un transfert classique
-          const transferPromises = recipients.map(async (recipient) => {
-            console.log(`📤 Transfert classique vers ${recipient}: ${amount} CVTC`);
+             return {
+               target: CVTC_TOKEN_ADDRESS,
+               data: encodedData,
+               value: 0n,
+             };
+           });
 
-            // Envoyer la transaction directement
-            const txHash = await walletClient.sendTransaction({
-              account: userAddress,
-              to: CVTC_TOKEN_ADDRESS,
-              data: encodeFunctionData({
-                abi: CVTC_TOKEN_ABI,
-                functionName: 'transfer',
-                args: [recipient, amountInWei],
-              }),
-              value: 0n,
-            });
+           // Envoyer les UserOperations avec le paymaster
+           console.log(`📤 Envoi de ${userOps.length} UserOperation(s) avec paymaster...`);
+           console.log('🔧 Paramètres sendTransaction:', {
+             userOps: userOps.length,
+             paymaster: PAYMASTER_ADDRESS,
+             paymasterData: paymasterData
+           });
 
-            console.log(`✅ Transaction envoyée: ${txHash}`);
-            return txHash;
-          });
+            console.log('🔧 Envoi de la transaction avec paymaster intégré...');
 
-          // Attendre que toutes les transactions soient envoyées
-          const txHashes = await Promise.all(transferPromises);
+            const userOpReceipt = await smartAccount.sendTransaction(userOps);
 
-          console.log('🎉 Toutes les transactions envoyées sur BSC Testnet !');
-          console.log(`💰 ${recipients.length} transfert(s) de ${amount} CVTC chacun`);
-          setTxHash(txHashes[0]);
+          console.log('🎉 Toutes les transactions envoyées avec paymaster !');
+          console.log(`💰 ${recipients.length} transfert(s) de ${amount} CVTC chacun (frais payés en CVTC)`);
+          setTxHash(userOpReceipt);
 
           // Message de succès pour l'utilisateur
           setTimeout(() => {
-            console.log('✅ SUCCÈS: Vos tokens CVTC ont été réellement transférés sur BSC Testnet !');
+            console.log('✅ SUCCÈS: Vos tokens CVTC ont été transférés avec paymaster ERC-4337 !');
           }, 1000);
 
           // Actualiser le solde réel après le transfert
@@ -817,10 +850,16 @@ export default function P2PTransferPage() {
             console.log('🔄 Solde CVTC mis à jour depuis la blockchain');
           }, 5000);
 
-        } catch (error) {
-          console.error('❌ Erreur lors des vraies transactions:', error);
-          setError(`Erreur lors des vraies transactions: ${error.message}`);
-        }
+         } catch (error) {
+           console.error('❌ Erreur lors des transactions ERC-4337:', error);
+           console.error('❌ Détails de l\'erreur:', {
+             message: error.message,
+             code: error.code,
+             data: error.data,
+             stack: error.stack
+           });
+           setError(`Erreur lors des transactions ERC-4337: ${error.message}`);
+         }
 
       } else {
         // Transfert planifié - Utilisation du vrai contrat CVTCScheduler

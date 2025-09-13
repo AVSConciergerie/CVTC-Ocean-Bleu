@@ -12,7 +12,7 @@ const PAYMASTER_CONFIG = {
         chainId: 97,
         rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
         bundlerUrl: "https://public.pimlico.io/v2/97/rpc",
-        paymasterAddress: "0x3853CB8b0F9e2935537734Fd18A74da36dA1a876",
+        paymasterAddress: "0x950c9E7ea88beF525E5fFA072E7F092E2B0f7516",
         entryPointAddress: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
         cvtcTokenAddress: "0x532FC49071656C16311F2f89E6e41C53243355D3"
     }
@@ -107,38 +107,33 @@ export function PimlicoProvider({ children }) {
             console.log('🔑 Adresse wallet Privy:', user.wallet.address);
             console.log('🏦 Adresse Smart Account dérivée:', smartAccountAddress);
 
-            // Créer le Smart Account Client avec paymaster intégré
+            // Créer le Smart Account Client avec configuration simplifiée
             const smartAccountClient = createSmartAccountClient({
                 account: {
                     address: smartAccountAddress,
-                    type: "simple"
+                    type: "simple",
+                    initCode: "0x", // Pas d'initCode pour un compte simple existant
+                    factory: undefined, // Pas de factory pour un compte simple
+                    factoryData: "0x" // Données factory vides
                 },
                 chain: bscTestnet,
                 bundlerTransport: http(config.bundlerUrl),
-                paymaster: paymaster ? {
-                    getPaymasterStubData: async () => {
+                middleware: {
+                    sponsorUserOperation: paymaster ? async (userOp) => {
                         try {
                             const stubData = await paymaster.getPaymasterStubData(config.cvtcTokenAddress);
                             return {
+                                ...userOp,
                                 paymaster: config.paymasterAddress,
                                 paymasterData: stubData,
                                 paymasterVerificationGasLimit: 150000n,
                                 paymasterPostOpGasLimit: 35000n
                             };
                         } catch (err) {
-                            console.error('Erreur paymaster stub data:', err);
-                            return null;
+                            console.error('Erreur paymaster middleware:', err);
+                            return userOp; // Retourner l'userOp sans paymaster en cas d'erreur
                         }
-                    }
-                } : undefined,
-                userOperation: {
-                    estimateFeesPerGas: async () => {
-                        // Fallback pour l'estimation des frais
-                        return {
-                            maxFeePerGas: 20000000000n, // 20 gwei
-                            maxPriorityFeePerGas: 2000000000n // 2 gwei
-                        };
-                    }
+                    } : undefined
                 }
             });
 

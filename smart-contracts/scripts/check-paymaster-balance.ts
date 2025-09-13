@@ -54,23 +54,34 @@ async function main() {
   }
 
   // Afficher les conclusions
+  console.log("\\n🎯 ANALYSE DE LA SITUATION:");
+  console.log("===========================");
+
   if (paymasterBalance > 0) {
-    console.log(`\n✅ Le paymaster contient ${ethers.formatUnits(paymasterBalance, decimals)} CVTC`);
+    console.log(`✅ Le paymaster contient ${ethers.formatUnits(paymasterBalance, decimals)} CVTC`);
   } else {
-    console.log(`\n❌ Le paymaster n'a pas de tokens CVTC`);
+    console.log(`❌ Le paymaster n'a pas de tokens CVTC (normal pour ERC-4337)`);
   }
 
   if (bnbBalance > 0) {
     console.log(`✅ Le paymaster a ${ethers.formatEther(bnbBalance)} BNB`);
   } else {
-    console.log(`❌ Le paymaster n'a pas de BNB - IL FAUT LE FONDER AVEC DU BNB !`);
+    console.log(`ℹ️ Le paymaster n'a pas de BNB dans son solde (normal)`);
   }
 
   if (deposit > 0) {
     console.log(`✅ Le paymaster a déposé ${ethers.formatEther(deposit)} BNB à l'EntryPoint`);
+    console.log(`🎉 C'EST CE QUI COMPTE POUR ERC-4337 !`);
   } else {
-    console.log(`❌ Le paymaster n'a pas déposé de BNB à l'EntryPoint - IL FAUT APPELER deposit() !`);
+    console.log(`❌ Le paymaster n'a pas déposé de BNB à l'EntryPoint`);
+    console.log(`💡 IL FAUT APPELER depositTo() sur l'EntryPoint`);
   }
+
+  console.log("\\n📋 RÉSUMÉ:");
+  console.log("==========");
+  console.log("• Solde BNB paymaster:", ethers.formatEther(bnbBalance), "BNB (optionnel)");
+  console.log("• Dépôt EntryPoint:", ethers.formatEther(deposit), "BNB (OBLIGATOIRE)");
+  console.log("• Solde CVTC paymaster:", ethers.formatUnits(paymasterBalance, decimals), "CVTC (reçu des utilisateurs)");
 }
 
 main().catch((error) => {

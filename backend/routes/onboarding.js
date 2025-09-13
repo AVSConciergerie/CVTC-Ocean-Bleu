@@ -1,4 +1,8 @@
-const express = require('express');const router = express.Router();const { startUserOnboarding } = require('../services/onboardingService');
+import express from 'express';
+import express from 'express';
+import { startUserOnboarding } from '../services/onboardingService.js';
+
+const router = express.Router();
 
 // POST /api/onboarding/start
 // Démarre le processus d'onboarding pour un utilisateur
@@ -18,4 +22,4 @@ router.post('/start', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

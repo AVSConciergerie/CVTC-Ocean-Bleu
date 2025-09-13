@@ -6,6 +6,7 @@ async function main() {
   // Adresses des contrats déployés
   const CVTC_TOKEN_ADDRESS = "0x532FC49071656C16311F2f89E6e41C53243355D3"; // BSC Testnet
   const ENTRYPOINT_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"; // ERC-4337 EntryPoint v0.7
+  const CVTC_SWAP_ADDRESS = "0xYourCVTCSwapContractAddress"; // TODO: Replace with actual CVTC Swap contract address
 
   const [deployer] = await ethers.getSigners();
   console.log("Déploiement avec le compte:", deployer.address);
@@ -17,7 +18,7 @@ async function main() {
   const paymaster = await CVTCPaymaster.deploy(
     ENTRYPOINT_ADDRESS,
     CVTC_TOKEN_ADDRESS,
-    deployer.address
+    CVTC_SWAP_ADDRESS
   );
 
   await paymaster.waitForDeployment();

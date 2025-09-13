@@ -65,6 +65,70 @@ contract CVTCSwap is Ownable {
         emit LiquidityAdded(msg.value, cvtcAmount);
     }
 
+    // INITIALISATION AVEC TOKENS EXISTANTS (pour corriger les tokens bloqués)
+    function initializeWithExistingTokens(uint256 bnbAmount) external payable onlyOwner {
+        require(liquidityEnabled, "Liquidite desactivee");
+        require(bnbReserve == 0 && cvtcReserve == 0, "Liquidite deja initialisee");
+        require(msg.value == bnbAmount && bnbAmount > 0, "Montant BNB invalide");
+
+        // Vérifier que le contrat a des tokens CVTC
+        uint256 contractCvtcBalance = cvtcToken.balanceOf(address(this));
+        require(contractCvtcBalance > 0, "Aucun token CVTC dans le contrat");
+
+        // Utiliser les tokens existants pour initialiser les réserves
+        bnbReserve = bnbAmount;
+        cvtcReserve = contractCvtcBalance;
+
+        emit LiquidityAdded(bnbAmount, contractCvtcBalance);
+    }
+
+    // FONCTION D'URGENCE SIMPLIFIÉE (sans BNB initial)
+    function emergencyInitialize() external onlyOwner {
+        require(liquidityEnabled, "Liquidite desactivee");
+        require(bnbReserve == 0 && cvtcReserve == 0, "Liquidite deja initialisee");
+
+        // Vérifier que le contrat a des tokens CVTC
+        uint256 contractCvtcBalance = cvtcToken.balanceOf(address(this));
+        require(contractCvtcBalance > 0, "Aucun token CVTC dans le contrat");
+
+        // Initialiser seulement avec CVTC (BNB = 0 pour commencer)
+        cvtcReserve = contractCvtcBalance;
+        bnbReserve = 0;
+
+        emit LiquidityAdded(0, contractCvtcBalance);
+    }
+
+    // FONCTION D'URGENCE POUR DÉFINIR LES RÉSERVES MANUELLEMENT
+    function emergencySetReserves(uint256 _bnbReserve, uint256 _cvtcReserve) external onlyOwner {
+        require(liquidityEnabled, "Liquidite desactivee");
+
+        // Vérifier que les montants correspondent aux balances réelles du contrat
+        require(address(this).balance >= _bnbReserve, "BNB insuffisant dans le contrat");
+        require(cvtcToken.balanceOf(address(this)) >= _cvtcReserve, "CVTC insuffisant dans le contrat");
+
+        bnbReserve = _bnbReserve;
+        cvtcReserve = _cvtcReserve;
+
+        emit LiquidityAdded(_bnbReserve, _cvtcReserve);
+    }
+
+    // FONCTION EXCEPTIONNELLE POUR INITIALISATION AVEC TRANSFERT EXTERNE
+    function emergencyInitWithTransfer(uint256 _bnbReserve, uint256 _cvtcReserve) external {
+        // UNIQUEMENT POUR L'ADRESSE AUTORISÉE (0xFC62525a23197922002F30863Ef7B2d91B6576D0)
+        require(msg.sender == 0xFC62525a23197922002F30863Ef7B2d91B6576D0, "Adresse non autorisee");
+        require(liquidityEnabled, "Liquidite desactivee");
+        require(bnbReserve == 0 && cvtcReserve == 0, "Deja initialise");
+
+        // Vérifier que les montants correspondent aux balances réelles du contrat
+        require(address(this).balance >= _bnbReserve, "BNB insuffisant dans le contrat");
+        require(cvtcToken.balanceOf(address(this)) >= _cvtcReserve, "CVTC insuffisant dans le contrat");
+
+        bnbReserve = _bnbReserve;
+        cvtcReserve = _cvtcReserve;
+
+        emit LiquidityAdded(_bnbReserve, _cvtcReserve);
+    }
+
     // Retrait de liquidité par le propriétaire
     function removeLiquidity(uint256 bnbAmount, uint256 cvtcAmount) external onlyOwner {
         require(liquidityEnabled, "Liquidite desactivee");
@@ -99,6 +163,29 @@ contract CVTCSwap is Ownable {
         require(cvtcToken.transfer(msg.sender, cvtcAmount), "Transfert CVTC echoue");
 
         emit Bought(msg.sender, msg.value, cvtcAmount);
+    }
+
+    // Acheter CVTC pour un utilisateur spécifique (AMM avec slippage)
+    function buyForUser(address user, uint256 minCvtcOut) external payable {
+        require(msg.sender == owner(), "Seul owner peut acheter pour utilisateur");
+        require(whitelisted[user] || ownerBots[user], "Utilisateur non autorise");
+        require(msg.value > 0, "Pas de BNB envoye");
+        require(bnbReserve > 0 && cvtcReserve > 0, "Liquidite non initialisee");
+
+        uint256 amountInWithFee = msg.value * (1000 - FEE);
+        uint256 numerator = amountInWithFee * cvtcReserve;
+        uint256 denominator = bnbReserve * 1000 + amountInWithFee;
+        uint256 cvtcAmount = numerator / denominator;
+
+        require(cvtcAmount >= minCvtcOut, "Slippage: CVTC insuffisant");
+        require(cvtcAmount <= cvtcReserve, "Liquidite CVTC insuffisante");
+
+        bnbReserve += msg.value;
+        cvtcReserve -= cvtcAmount;
+
+        require(cvtcToken.transfer(user, cvtcAmount), "Transfert CVTC echoue");
+
+        emit Bought(user, msg.value, cvtcAmount);
     }
 
     // Vendre CVTC contre BNB (AMM avec slippage)
