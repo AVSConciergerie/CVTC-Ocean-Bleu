@@ -35,7 +35,7 @@ const CVTC_SCHEDULER_ADDRESS = '0x0000000000000000000000000000000000000000'; // 
 
 // Constants
 const CVTC_TOKEN_ADDRESS = '0x532FC49071656C16311F2f89E6e41C53243355D3';
-const PAYMASTER_ADDRESS = '0x950c9E7ea88beF525E5fFA072E7F092E2B0f7516'; // Adresse correcte du paymaster déployé
+const PAYMASTER_ADDRESS = '0xa5e6b56FF29a7d0b19946DB836E31D88E41CAdE2'; // NOUVEL paymaster corrigé
 
 // Fuseau horaire de la Réunion (UTC+4)
 const REUNION_TIMEZONE = 'Indian/Reunion';
@@ -291,7 +291,7 @@ const CustomDatePicker = ({ value, onChange, placeholder, isOpen, onToggle, labe
 };
 
 export default function P2PTransferPage() {
-  const { smartAccount, smartAccountAddress, error: pimlicoError } = usePimlico();
+  const { smartAccount, smartAccountAddress, account, bundler, config, isMultiOwner, error: pimlicoError } = usePimlico();
   const { ready, authenticated } = usePrivy();
   const { wallets } = useWallets();
 
@@ -737,8 +737,11 @@ export default function P2PTransferPage() {
       return;
     }
 
-    if (!smartAccount || recipients.length === 0 || !amount || parseFloat(amount) <= 0) {
-      setError("Veuillez vérifier les informations : Smart Account non prêt, destinataire manquant ou montant invalide.");
+    if ((!smartAccount && !isMultiOwner) || recipients.length === 0 || !amount || parseFloat(amount) <= 0) {
+      const errorMsg = !smartAccount && !isMultiOwner ? "Smart Account non prêt" :
+                      recipients.length === 0 ? "destinataire manquant" :
+                      !amount || parseFloat(amount) <= 0 ? "montant invalide" : "erreur inconnue";
+      setError(`Veuillez vérifier les informations : ${errorMsg}.`);
       return;
     }
 
@@ -759,89 +762,56 @@ export default function P2PTransferPage() {
       const amountInWei = parseUnits(amount, 2);
 
       if (frequency === 'unique') {
-        // VRAIES TRANSACTIONS SUR BSC TESTNET (avec paymaster ERC-4337)
-        console.log('🚀 Exécution de vraies transactions sur BSC Testnet avec paymaster...');
-        console.log(`📊 Transfert de ${amount} CVTC vers ${recipients.length} destinataire(s)`);
-        console.log('💰 Paymaster activé - Vous payez les frais de gas en CVTC');
-
-        // Vérifier que le paymaster est disponible
-        if (!paymasterUtils) {
-          setError('Paymaster non initialisé. Veuillez réessayer.');
-          return;
+        // VRAIES TRANSACTIONS SUR BSC TESTNET
+        if (smartAccount) {
+          console.log('🚀 Exécution de vraies transactions sur BSC Testnet avec paymaster ERC-4337...');
+          console.log(`📊 Transfert de ${amount} CVTC vers ${recipients.length} destinataire(s)`);
+          console.log('💰 Paymaster activé - Vous payez les frais de gas en CVTC');
+        } else {
+          console.log('🚀 Exécution de vraies transactions sur BSC Testnet classiques...');
+          console.log(`📊 Transfert de ${amount} CVTC vers ${recipients.length} destinataire(s)`);
+          console.log('💰 Transactions classiques - Frais payés en BNB');
         }
 
-        // Calculer les frais de gas estimés
-        try {
-          const gasEstimate = 100000n; // Estimation du gas pour un transfert
-          const paymasterQuote = await paymasterUtils.calculateTokenAmount(gasEstimate);
-          console.log(`💰 Frais de gas estimés: ${paymasterQuote.tokenAmount} CVTC`);
+        if (isMultiOwner) {
+          console.log('⚠️ Smart wallet détecté, utilisation de transactions classiques (frais payés en BNB)');
 
-          // Vérifier que l'utilisateur a assez de CVTC pour les frais
-          const balanceCheck = await paymasterUtils.checkUserBalance(smartAccountAddress, paymasterQuote.quote);
-          if (!balanceCheck.hasEnough) {
-            setError(`Solde CVTC insuffisant pour les frais de gas. Disponible: ${balanceCheck.balance} CVTC, Besoin: ${balanceCheck.required} CVTC`);
-            return;
-          }
-        } catch (quoteError) {
-          console.warn('⚠️ Impossible de calculer les frais de gas:', quoteError);
-        }
-
-        try {
-          // APPROCHE ERC-4337 : Utilisation du smart account avec paymaster
-          console.log('🔄 Utilisation du smart account ERC-4337 avec paymaster...');
-
-          if (!smartAccount) {
-            throw new Error('Smart account non disponible. Veuillez vous reconnecter.');
+          // Pour smart wallets, utiliser des transactions classiques
+          if (!wallets || wallets.length === 0) {
+            throw new Error('Wallet Privy non disponible');
           }
 
-           // Obtenir les données paymaster
-           const paymasterData = await paymasterUtils.getPaymasterData();
-           console.log('📋 Données paymaster obtenues:', paymasterData);
-           console.log('📋 Type des données:', typeof paymasterData);
-           console.log('📋 Longueur des données:', paymasterData ? paymasterData.length : 'undefined');
+          const ethereumProvider = await wallets[0].getEthereumProvider();
+          const walletClient = createWalletClient({
+            chain: bscTestnet,
+            transport: custom(ethereumProvider),
+          });
 
-           // Pour chaque destinataire, créer une UserOperation
-           const userOps = recipients.map((recipient) => {
-             // Utiliser encodeFunctionData correctement
-             const encodedData = encodeFunctionData({
-               abi: CVTC_TOKEN_ABI,
-               functionName: 'transfer',
-               args: [recipient, amountInWei],
-             });
+          const [userAddress] = await walletClient.getAddresses();
 
-             console.log(`🔧 UserOp pour ${recipient}:`, {
-               target: CVTC_TOKEN_ADDRESS,
-               data: encodedData,
-               dataLength: encodedData.length,
-               value: 0n
-             });
+          // Envoyer les transactions classiques
+          const txHashes = [];
+          for (const recipient of recipients) {
+            const tx = await walletClient.sendTransaction({
+              account: userAddress,
+              to: CVTC_TOKEN_ADDRESS,
+              data: encodeFunctionData({
+                abi: CVTC_TOKEN_ABI,
+                functionName: 'transfer',
+                args: [recipient, amountInWei],
+              }),
+            });
+            txHashes.push(tx);
+            console.log(`✅ Transaction classique envoyée: ${tx}`);
+          }
 
-             return {
-               target: CVTC_TOKEN_ADDRESS,
-               data: encodedData,
-               value: 0n,
-             };
-           });
-
-           // Envoyer les UserOperations avec le paymaster
-           console.log(`📤 Envoi de ${userOps.length} UserOperation(s) avec paymaster...`);
-           console.log('🔧 Paramètres sendTransaction:', {
-             userOps: userOps.length,
-             paymaster: PAYMASTER_ADDRESS,
-             paymasterData: paymasterData
-           });
-
-            console.log('🔧 Envoi de la transaction avec paymaster intégré...');
-
-            const userOpReceipt = await smartAccount.sendTransaction(userOps);
-
-          console.log('🎉 Toutes les transactions envoyées avec paymaster !');
-          console.log(`💰 ${recipients.length} transfert(s) de ${amount} CVTC chacun (frais payés en CVTC)`);
-          setTxHash(userOpReceipt);
+          setTxHash(txHashes[0]); // Retourner le premier hash
+          console.log('🎉 Toutes les transactions classiques envoyées !');
+          console.log(`💰 ${recipients.length} transfert(s) de ${amount} CVTC chacun (frais payés en BNB)`);
 
           // Message de succès pour l'utilisateur
           setTimeout(() => {
-            console.log('✅ SUCCÈS: Vos tokens CVTC ont été transférés avec paymaster ERC-4337 !');
+            console.log('✅ SUCCÈS: Vos tokens CVTC ont été transférés via transactions classiques !');
           }, 1000);
 
           // Actualiser le solde réel après le transfert
@@ -850,16 +820,128 @@ export default function P2PTransferPage() {
             console.log('🔄 Solde CVTC mis à jour depuis la blockchain');
           }, 5000);
 
-         } catch (error) {
-           console.error('❌ Erreur lors des transactions ERC-4337:', error);
-           console.error('❌ Détails de l\'erreur:', {
-             message: error.message,
-             code: error.code,
-             data: error.data,
-             stack: error.stack
-           });
-           setError(`Erreur lors des transactions ERC-4337: ${error.message}`);
-         }
+        } else {
+          // Vérifier que le paymaster est disponible
+          if (!paymasterUtils) {
+            setError('Paymaster non initialisé. Veuillez réessayer.');
+            return;
+          }
+
+          // Calculer les frais de gas estimés
+          try {
+            const gasEstimate = 100000n; // Estimation du gas pour un transfert
+            const paymasterQuote = await paymasterUtils.calculateTokenAmount(gasEstimate);
+            console.log(`💰 Frais de gas estimés: ${paymasterQuote.tokenAmount} CVTC`);
+
+            // Pour les smart wallets multi-owner, permettre le crédit (remboursement dans 60 jours)
+            if (!isMultiOwner) {
+              const balanceCheck = await paymasterUtils.checkUserBalance(smartAccountAddress, paymasterQuote.quote);
+              if (!balanceCheck.hasEnough) {
+                setError(`Solde CVTC insuffisant pour les frais de gas. Disponible: ${balanceCheck.balance} CVTC, Besoin: ${balanceCheck.required} CVTC`);
+                return;
+              }
+            } else {
+              console.log('💳 Mode crédit activé pour smart wallet - Remboursement attendu dans 60 jours');
+            }
+          } catch (quoteError) {
+            console.warn('⚠️ Impossible de calculer les frais de gas:', quoteError);
+          }
+
+          try {
+            // APPROCHE ERC-4337 : Utilisation du smart account avec paymaster
+            console.log('🔄 Utilisation du smart account ERC-4337...');
+
+            if (!smartAccount) {
+              throw new Error('Smart account non disponible. Veuillez vous reconnecter.');
+            }
+
+            // Pour chaque destinataire, créer une UserOperation
+            const calls = recipients.map((recipient) => {
+              const encodedData = encodeFunctionData({
+                abi: CVTC_TOKEN_ABI,
+                functionName: 'transfer',
+                args: [recipient, amountInWei],
+              });
+
+              return {
+                to: CVTC_TOKEN_ADDRESS,
+                data: encodedData,
+                value: 0n,
+              };
+            });
+
+            console.log('🔧 Calls array complet:', calls);
+
+            // Tentative d'utilisation du paymaster
+            let usePaymaster = false;
+            let paymasterData = '0x';
+
+            if (paymasterUtils) {
+              try {
+                paymasterData = await paymasterUtils.getPaymasterStubData();
+                console.log('📋 Données paymaster obtenues:', paymasterData);
+                usePaymaster = true;
+              } catch (paymasterError) {
+                console.warn('⚠️ Paymaster non disponible, utilisation sans paymaster:', paymasterError.message);
+                usePaymaster = false;
+              }
+            }
+
+            console.log(`📤 Envoi de ${calls.length} call(s) ${usePaymaster ? 'avec' : 'sans'} paymaster...`);
+
+            if (usePaymaster) {
+              const gasPrice = await bundler.getUserOperationGasPrice();
+
+              const userOp = {
+                calls,
+                maxFeePerGas: gasPrice.fast.maxFeePerGas,
+                maxPriorityFeePerGas: gasPrice.fast.maxPriorityFeePerGas,
+                paymaster: config.paymasterAddress,
+                paymasterData,
+                paymasterVerificationGasLimit: 150000n,
+                paymasterPostOpGasLimit: 35000n,
+              };
+
+              console.log('🔧 UserOp construit avec paymaster:', userOp);
+
+              const signedUserOp = await account.signUserOperation(userOp);
+              const userOpReceipt = await bundler.sendUserOperation(signedUserOp);
+
+              console.log('🎉 Toutes les transactions envoyées avec paymaster !');
+              console.log(`💰 ${recipients.length} transfert(s) de ${amount} CVTC chacun (frais payés en CVTC)`);
+              setTxHash(userOpReceipt);
+
+            } else {
+              // Fallback sans paymaster
+              const userOpReceipt = await smartAccount.sendUserOperation({ calls });
+
+              console.log('🎉 Toutes les transactions envoyées sans paymaster !');
+              console.log(`💰 ${recipients.length} transfert(s) de ${amount} CVTC chacun (frais payés en BNB via ERC-4337)`);
+              setTxHash(userOpReceipt);
+            }
+
+            // Message de succès commun
+            setTimeout(() => {
+              console.log('✅ SUCCÈS: Vos tokens CVTC ont été transférés !');
+            }, 1000);
+
+            // Actualiser le solde réel après le transfert
+            setTimeout(() => {
+              checkBalance();
+              console.log('🔄 Solde CVTC mis à jour depuis la blockchain');
+            }, 5000);
+
+          } catch (error) {
+            console.error('❌ Erreur lors des transactions ERC-4337:', error);
+            console.error('❌ Détails de l\'erreur:', {
+              message: error.message,
+              code: error.code,
+              data: error.data,
+              stack: error.stack
+            });
+            setError(`Erreur lors des transactions ERC-4337: ${error.message}`);
+          }
+        }
 
       } else {
         // Transfert planifié - Utilisation du vrai contrat CVTCScheduler
@@ -890,7 +972,7 @@ export default function P2PTransferPage() {
     } finally {
       setIsSending(false);
     }
-    }, [smartAccount, recipients, amount, balance, frequency, startDate, endDate, validatePrivyAuth, checkBalance, smartAccountAddress, wallets, createScheduledTransfer]);
+    }, [smartAccount, recipients, amount, balance, frequency, startDate, endDate, validatePrivyAuth, checkBalance, smartAccountAddress, wallets, createScheduledTransfer, isMultiOwner, bundler, config, paymasterUtils, account]);
 
   // Load contacts from localStorage
   useEffect(() => {
@@ -1056,7 +1138,7 @@ export default function P2PTransferPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
 
-                {/* Smart Account */}
+                {/* Smart Account / Wallet */}
                 <div className="p-4 bg-gradient-to-br from-slate-900/40 via-emerald-950/30 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
                     <div className={`w-3 h-3 rounded-full ${smartAccountAddress ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}></div>
@@ -1066,7 +1148,9 @@ export default function P2PTransferPage() {
                     {smartAccountAddress ? (
                       <>
                         <div className="font-mono break-all text-emerald-400">{smartAccountAddress}</div>
-                        <div className="text-green-400">✅ Connecté</div>
+                        <div className="text-green-400">
+                          {smartAccount ? '✅ ERC-4337 Activé' : '✅ Transactions Classiques'}
+                        </div>
                       </>
                     ) : (
                       <div className="text-yellow-400">⏳ Initialisation...</div>

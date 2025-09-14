@@ -1,0 +1,43 @@
+{
+  "users": {
+    "0x04554bd13ddaa139d7d84953841562ca8eb55d1b": [
+      {
+        "id": 1757797786980.7114,
+        "type": "daily_swap",
+        "data": {
+          "reason": "manual_catch_up_day_1",
+          "day": 1,
+          "manual": true
+        },
+        "createdAt": "2025-09-13T21:09:46.980Z",
+        "status": "failed",
+        "failedAt": "2025-09-13T21:09:51.512Z"
+      },
+      {
+        "id": 1757797787001.226,
+        "type": "daily_swap",
+        "data": {
+          "reason": "manual_catch_up_day_2",
+          "day": 2,
+          "manual": true
+        },
+        "createdAt": "2025-09-13T21:09:47.001Z",
+        "status": "failed",
+        "failedAt": "2025-09-13T21:09:51.965Z"
+      },
+      {
+        "id": 1757797787004.9043,
+        "type": "daily_swap",
+        "data": {
+          "reason": "manual_catch_up_day_3",
+          "day": 3,
+          "manual": true
+        },
+        "createdAt": "2025-09-13T21:09:47.004Z",
+        "status": "failed",
+        "failedAt": "2025-09-13T21:09:52.422Z"
+      }
+    ]
+  },
+  "lastUpdated": "2025-09-13T21:09:52.422Z"
+}

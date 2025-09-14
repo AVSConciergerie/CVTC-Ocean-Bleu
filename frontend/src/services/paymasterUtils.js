@@ -375,7 +375,7 @@ export class PaymasterUtils {
 
         return {
             estimatedCost: ethers.formatEther(estimatedCost.toString()),
-            tokenAmount: ethers.formatEther(quote.toString()),
+            tokenAmount: ethers.formatUnits(quote.toString(), 2), // CVTC a 2 décimales !
             quote: quote
         };
     }
@@ -393,8 +393,8 @@ export class PaymasterUtils {
         const balance = await tokenContract.balanceOf(userAddress);
         return {
             hasEnough: balance >= requiredAmount,
-            balance: ethers.formatEther(balance),
-            required: ethers.formatEther(requiredAmount)
+            balance: ethers.formatUnits(balance, 2), // CVTC a 2 décimales !
+            required: ethers.formatUnits(requiredAmount, 2) // CVTC a 2 décimales !
         };
     }
 }

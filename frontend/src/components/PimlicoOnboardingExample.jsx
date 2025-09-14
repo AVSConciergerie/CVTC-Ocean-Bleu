@@ -23,7 +23,7 @@ const PimlicoOnboardingExample = () => {
 
   // Adresses des contrats déployés
   const CONTRACTS = {
-    paymaster: "0x950c9E7ea88beF525E5fFA072E7F092E2B0f7516",
+    paymaster: "0xa5e6b56FF29a7d0b19946DB836E31D88E41CAdE2", // NOUVEL paymaster corrigé
     onboarding: "0xf3af730B6eaF257EC44b244d56F3073Fd6B593c5",
     cvtcToken: "0x532FC49071656C16311F2f89E6e41C53243355D3"
   };

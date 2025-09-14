@@ -45,19 +45,53 @@ contract CVTCSwap is Ownable {
         emit WhitelistUpdated(bot, status); // Réutilise l'event
     }
 
-    // Ajout de liquidité par le propriétaire
-    function addLiquidity(uint256 cvtcAmount) external payable onlyOwner {
+    // AJOUT DE LIQUIDITÉ PUBLIC (AMM classique)
+    function addLiquidityPublic(uint256 cvtcAmount) external payable {
         require(liquidityEnabled, "Liquidite desactivee");
         require(msg.value > 0 && cvtcAmount > 0, "Montants non valides");
+
+        // Transférer les CVTC depuis l'utilisateur vers le contrat
         require(cvtcToken.transferFrom(msg.sender, address(this), cvtcAmount), "Transfert CVTC echoue");
 
         if (bnbReserve == 0 && cvtcReserve == 0) {
-            // Liquidité initiale
+            // Première liquidité - définir le ratio initial
             bnbReserve = msg.value;
             cvtcReserve = cvtcAmount;
         } else {
-            // Vérifier le ratio pour maintenir le prix
-            require(msg.value * cvtcReserve == cvtcAmount * bnbReserve, "Ratio de liquidite incorrect");
+            // Vérifier le ratio pour maintenir le prix (avec tolérance de 5%)
+            uint256 expectedCvtc = (msg.value * cvtcReserve) / bnbReserve;
+            uint256 minCvtc = expectedCvtc * 95 / 100; // -5%
+            uint256 maxCvtc = expectedCvtc * 105 / 100; // +5%
+
+            require(cvtcAmount >= minCvtc && cvtcAmount <= maxCvtc, "Ratio de liquidite incorrect (+/- 5%)");
+
+            bnbReserve += msg.value;
+            cvtcReserve += cvtcAmount;
+        }
+
+        emit LiquidityAdded(msg.value, cvtcAmount);
+    }
+
+    // Ajout de liquidité par le propriétaire (AMM classique)
+    function addLiquidity(uint256 cvtcAmount) external payable onlyOwner {
+        require(liquidityEnabled, "Liquidite desactivee");
+        require(msg.value > 0 && cvtcAmount > 0, "Montants non valides");
+
+        // Transférer les CVTC depuis l'owner vers le contrat
+        require(cvtcToken.transferFrom(msg.sender, address(this), cvtcAmount), "Transfert CVTC echoue");
+
+        if (bnbReserve == 0 && cvtcReserve == 0) {
+            // Première liquidité - définir le ratio initial
+            bnbReserve = msg.value;
+            cvtcReserve = cvtcAmount;
+        } else {
+            // Vérifier le ratio pour maintenir le prix (avec tolérance de 5%)
+            uint256 expectedCvtc = (msg.value * cvtcReserve) / bnbReserve;
+            uint256 minCvtc = expectedCvtc * 95 / 100; // -5%
+            uint256 maxCvtc = expectedCvtc * 105 / 100; // +5%
+
+            require(cvtcAmount >= minCvtc && cvtcAmount <= maxCvtc, "Ratio de liquidite incorrect (+/- 5%)");
+
             bnbReserve += msg.value;
             cvtcReserve += cvtcAmount;
         }
@@ -220,8 +254,13 @@ contract CVTCSwap is Ownable {
         return numerator / denominator;
     }
 
-    // Permet de recevoir BNB
+    // Permet de recevoir BNB (seulement si liquidité activée)
     receive() external payable {
-        bnbReserve += msg.value;
+        require(liquidityEnabled, "Liquidite desactivee");
+        // Ajouter seulement si c'est un ajout de liquidité intentionnel
+        if (bnbReserve > 0 || cvtcReserve > 0) {
+            bnbReserve += msg.value;
+        }
+        // Sinon, garder les fonds sans les ajouter aux réserves
     }
 }

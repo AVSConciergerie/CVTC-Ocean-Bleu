@@ -4,6 +4,7 @@ import "./AuroraBackground.css";
 
 // Ce composant ne fait qu'afficher l'effet d'aurore en fond.
 // Il sera placé une seule fois dans App.jsx et se trouvera "derrière" tout le reste.
+  console.log('AuroraBackground component rendering');
 export const AuroraBackground = () => {
   return (
     <div className="aurora-background-container">

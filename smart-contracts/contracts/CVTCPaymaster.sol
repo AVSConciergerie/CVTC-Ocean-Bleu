@@ -345,14 +345,15 @@ contract CVTCPaymaster is Ownable {
         uint256 estimatedGasCost = gasLimit * 20 * 1e9; // 20 gwei * gasLimit
         uint256 tokenPrice = tokenPrices[token];
 
-        tokenAmount = (estimatedGasCost * 1e18) / tokenPrice;
+        // CORRECTION: estimatedGasCost est déjà en wei, pas besoin de multiplier par 1e18
+        tokenAmount = estimatedGasCost / tokenPrice;
     }
 
     /**
      * @notice Check and process pending reimbursements for a user
      * @param user User address to check
      */
-    function checkAndProcessReimbursement(address user) external {
+    function checkAndProcessReimbursement(address user) public {
         UserDebt storage debt = userDebts[user];
 
         if (!debt.isActive || (debt.cvtcOwed == 0 && debt.bnbOwed == 0)) {

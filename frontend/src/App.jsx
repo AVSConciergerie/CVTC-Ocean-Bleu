@@ -19,6 +19,7 @@ import TestPimlicoTutorial from './pages/TestPimlicoTutorial'; // Ajout de la pa
 // Import des styles globaux (qui contiennent maintenant le design system)
 import './index.css';
 
+  console.log('App component rendering');
 function App() {
   return (
     <>

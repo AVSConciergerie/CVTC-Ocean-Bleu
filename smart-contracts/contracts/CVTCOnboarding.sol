@@ -30,7 +30,7 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
 
     // Configuration des montants (en wei pour précision)
     uint256 public constant INITIAL_LOAN = 0.30 ether; // 0,30€ BNB prêtés
-    uint256 public constant DAILY_SWAP_AMOUNT = 0.01 ether; // 0,01€ BNB par jour
+    uint256 public constant DAILY_SWAP_AMOUNT = 0.000013 ether; // 0,01€ en BNB (≈0.000013 BNB à 770€/BNB)
     uint256 public constant ONBOARDING_DURATION = 30 days;
 
     // Paliers de remboursement (en CVTC)
