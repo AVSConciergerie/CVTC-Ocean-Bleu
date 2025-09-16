@@ -67,7 +67,7 @@ async function checkPrerequisites() {
 
     // Vérifier la connectivité BSC Testnet
     try {
-        const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+        const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
         await provider.getBlockNumber();
         console.log("✅ Connexion BSC Testnet OK");
     } catch (error) {
@@ -79,7 +79,7 @@ async function checkPrerequisites() {
 
 async function deployPaymaster(): Promise<string> {
     const privateKey = process.env.PRIVATE_KEY!;
-    const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+    const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
     const signer = new ethers.Wallet(privateKey, provider);
 
     console.log(`👤 Déployeur: ${signer.address}`);
@@ -101,7 +101,7 @@ async function deployPaymaster(): Promise<string> {
     console.log("📤 Déploiement en cours...");
     process.env.DEPLOYER_ADDRESS = signer.address;
 
-    const deployCommand = `cd /Users/utilisateur/Documents/GitHub/CVTC-Ocean-Bleu/smart-contracts && forge script script/DeployPaymaster.s.sol --rpc-url https://data-seed-prebsc-1-s1.binance.org:8545/ --private-key ${privateKey} --broadcast --verify`;
+    const deployCommand = `cd /Users/utilisateur/Documents/GitHub/CVTC-Ocean-Bleu/smart-contracts && forge script script/DeployPaymaster.s.sol --rpc-url https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7 --private-key ${privateKey} --broadcast --verify`;
 
     const result = execSync(deployCommand, {
         encoding: 'utf-8',
@@ -134,7 +134,7 @@ import { ethers } from 'ethers';
 const PAYMASTER_CONFIG = {
     bscTestnet: {
         chainId: 97,
-        rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+        rpcUrl: "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7",
         bundlerUrl: "https://public.pimlico.io/v2/97/rpc",
         paymasterAddress: "${paymasterAddress}",
         entryPointAddress: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
@@ -353,7 +353,7 @@ export default PaymasterUtils;`;
 
 async function testDeployment(paymasterAddress: string) {
     const privateKey = process.env.PRIVATE_KEY!;
-    const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+    const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
     const signer = new ethers.Wallet(privateKey, provider);
 
     // ABI simplifié pour les tests
@@ -407,7 +407,7 @@ async function finalizeSetup(paymasterAddress: string) {
         paymasterAddress,
         entryPointAddress: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
         cvtcTokenAddress: "0x532FC49071656C16311F2f89E6e41C53243355D3",
-        rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+        rpcUrl: "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7",
         bundlerUrl: "https://public.pimlico.io/v2/97/rpc",
         deployedAt: new Date().toISOString(),
         version: "1.0.0"

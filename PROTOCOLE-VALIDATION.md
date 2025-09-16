@@ -121,7 +121,7 @@ slither . --checklist
 ### 8️⃣ **Simulation de Déploiement**
 ```bash
 # Fork BSC testnet local
-npx hardhat node --fork https://data-seed-prebsc-1-s1.binance.org:8545/
+npx hardhat node --fork https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7
 
 # Déployer et tester sur fork
 npx hardhat run scripts/deploy-and-test.ts --network localhost

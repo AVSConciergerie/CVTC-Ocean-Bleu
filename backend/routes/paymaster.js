@@ -7,7 +7,7 @@ const router = express.Router();
 const PAYMASTER_CONFIG = {
     bscTestnet: {
         chainId: 97,
-        rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+        rpcUrl: "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7",
         paymasterAddress: "0x950c9E7ea88beF525E5fFA072E7F092E2B0f7516",
         entryPointAddress: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
         cvtcTokenAddress: "0x532FC49071656C16311F2f89E6e41C53243355D3"

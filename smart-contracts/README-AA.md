@@ -50,7 +50,7 @@ PIMLICO_API_KEY=your_pimlico_api_key
 PIMLICO_RPC_URL=https://api.pimlico.io/v2/97/rpc?apikey=your_key
 
 # BSC Configuration
-BSC_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545/
+BSC_RPC_URL=https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7
 BSCSCAN_API_KEY=your_bscscan_key
 PRIVATE_KEY=your_private_key
 ```

@@ -4,7 +4,7 @@ async function main() {
   console.log("🔍 VÉRIFICATION DU SOLDE DU PAYMASTER");
   console.log("====================================");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Adresses
   const paymasterAddress = "0x950c9E7ea88beF525E5fFA072E7F092E2B0f7516";

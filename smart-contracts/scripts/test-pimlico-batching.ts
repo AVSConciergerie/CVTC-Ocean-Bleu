@@ -44,7 +44,7 @@ async function main() {
     const walletClient = createWalletClient({
       chain: bscTestnet,
       transport: custom({ request: async ({ method, params }) => {
-        const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+        const provider = new ethers.providers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
         return await provider.send(method, params);
       }}),
     });

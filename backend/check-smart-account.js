@@ -9,7 +9,7 @@ async function checkSmartAccount() {
 
   const publicClient = createPublicClient({
     chain: bscTestnet,
-    transport: http("https://data-seed-prebsc-1-s1.binance.org:8545/"),
+    transport: http("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7"),
   });
 
   // Créer un mock owner

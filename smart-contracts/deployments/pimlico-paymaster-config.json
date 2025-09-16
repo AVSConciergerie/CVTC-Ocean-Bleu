@@ -1,13 +1,13 @@
 {
   "paymasterAddress": "0x950c9E7ea88beF525E5fFA072E7F092E2B0f7516",
   "entryPoint": "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789",
-  "cvtcToken": "0x532FC49071656C16311F2f89E6e41C53243355D3",
+  "cvtcToken": "0x532fc49071656c16311f2f89e6e41c53243355d3",
   "network": "bsc-testnet",
   "deployedAt": "2025-09-10T12:28:38.760Z",
   "pimlicoApiKey": "pim_32ESGpGsTSAn7VVUj7Frd7",
   "configuration": {
     "supportedTokens": [
-      "0x532FC49071656C16311F2f89E6e41C53243355D3"
+      "0x532fc49071656c16311f2f89e6e41c53243355d3"
     ],
     "cvtcPrice": "1000000000000000000",
     "postOpGas": "35000",

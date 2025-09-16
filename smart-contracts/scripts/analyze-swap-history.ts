@@ -5,7 +5,7 @@ async function main() {
   console.log("==================================");
 
   const SWAP_ADDRESS = "0x8Cd8331a565769624A4735f613A44643DD2e2932";
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   try {
     // Récupérer les 20 dernières transactions vers le contrat

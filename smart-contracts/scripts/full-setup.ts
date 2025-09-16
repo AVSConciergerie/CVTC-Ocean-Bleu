@@ -21,7 +21,7 @@ async function main() {
   // 2. Vérification des fonds
   console.log("\n💰 ÉTAPE 2: VÉRIFICATION DES FONDS");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.providers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
   const wallet = new ethers.Wallet(privateKey, provider);
   const balance = await provider.getBalance(wallet.address);
 

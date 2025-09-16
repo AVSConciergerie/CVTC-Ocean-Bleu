@@ -4,8 +4,8 @@ dotenv.config();
 
 const BNB_RPC_URL = process.env.BNB_RPC_URL;
 const OPERATOR_PRIVATE_KEY = process.env.OPERATOR_PRIVATE_KEY;
-// Nouvelle adresse du contrat corrigé
-const CVTC_ONBOARDING_CONTRACT_ADDRESS = "0x8Cd8331a565769624A4735f613A44643DD2e2932"; // À mettre à jour après déploiement
+// Adresse du contrat swap CVTC
+const CVTC_SWAP_CONTRACT_ADDRESS = "0x9fD15619a90005468F02920Bb569c95759Da710C";
 
 const contractABI = [
   "function updateWhitelist(address user, bool status) external",
@@ -27,10 +27,10 @@ async function swapForUserFixed() {
 
   const provider = new ethers.JsonRpcProvider(BNB_RPC_URL);
   const operatorWallet = new ethers.Wallet(OPERATOR_PRIVATE_KEY, provider);
-  const onboardingContract = new ethers.Contract(CVTC_ONBOARDING_CONTRACT_ADDRESS, contractABI, operatorWallet);
+  const swapContract = new ethers.Contract(CVTC_SWAP_CONTRACT_ADDRESS, contractABI, operatorWallet);
 
   console.log(`👤 Utilisateur: ${USER_ADDRESS}`);
-  console.log(`📍 Contrat: ${CVTC_ONBOARDING_CONTRACT_ADDRESS}`);
+  console.log(`📍 Contrat: ${CVTC_SWAP_CONTRACT_ADDRESS}`);
   console.log(`👑 Opérateur: ${operatorWallet.address}`);
 
   try {
@@ -38,7 +38,7 @@ async function swapForUserFixed() {
     console.log(`\\n🔍 VÉRIFICATION WHITELIST...`);
 
     // Vérifier les réserves
-    const [bnbReserve, cvtcReserve] = await onboardingContract.getReserves();
+    const [bnbReserve, cvtcReserve] = await swapContract.getReserves();
     console.log(`\\n💰 RÉSERVES:`);
     console.log(`💰 BNB: ${ethers.formatEther(bnbReserve)} BNB`);
     console.log(`🪙 CVTC: ${ethers.formatUnits(cvtcReserve, 2)} CVTC`);
@@ -47,7 +47,7 @@ async function swapForUserFixed() {
     const operatorBalance = await provider.getBalance(operatorWallet.address);
     console.log(`\\n💰 SOLDE OPÉRATEUR: ${ethers.formatEther(operatorBalance)} BNB`);
 
-    if (operatorBalance < ethers.parseEther("0.00002")) {
+    if (operatorBalance < ethers.parseEther("0.00001")) {
       console.log(`❌ SOLDE INSUFFISANT`);
       return;
     }
@@ -60,7 +60,7 @@ async function swapForUserFixed() {
     console.log(`\\n✅ CONDITIONS REMPLIES`);
 
     // Calculer le montant attendu
-    const bnbAmount = ethers.parseEther("0.00002");
+    const bnbAmount = ethers.parseEther("0.00001");
     const expectedCvtc = (bnbAmount * cvtcReserve) / (bnbReserve + bnbAmount);
     const minCvtcOut = expectedCvtc * 95n / 100n; // 95% du montant attendu
 
@@ -73,7 +73,7 @@ async function swapForUserFixed() {
     console.log(`\\n🚀 EXÉCUTION DU SWAP CORRIGÉ...`);
     console.log(`📤 Utilisation de buyForUser() - tokens iront à l'utilisateur`);
 
-    const tx = await onboardingContract.buyForUser(USER_ADDRESS, minCvtcOut, {
+    const tx = await swapContract.buyForUser(USER_ADDRESS, minCvtcOut, {
       value: bnbAmount,
       gasLimit: 300000
     });
@@ -86,7 +86,7 @@ async function swapForUserFixed() {
     console.log(`📊 Gas utilisé: ${receipt.gasUsed}`);
 
     // Vérifier le résultat
-    const cvtcTokenAddress = await onboardingContract.cvtcToken();
+    const cvtcTokenAddress = await swapContract.cvtcToken();
     const cvtcToken = new ethers.Contract(
       cvtcTokenAddress,
       ["function balanceOf(address) view returns (uint256)"],

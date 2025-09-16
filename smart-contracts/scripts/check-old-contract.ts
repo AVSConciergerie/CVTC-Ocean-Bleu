@@ -4,7 +4,7 @@ async function main() {
   console.log("🔍 VÉRIFICATION DE L'ANCIEN CONTRAT");
   console.log("===================================");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Ancien contrat (d'après les scripts précédents)
   const oldContractAddress = "0xe094f17A086CfC7f4A1F95817aa836d40b6B0a83";

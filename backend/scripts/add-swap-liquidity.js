@@ -60,8 +60,8 @@ async function addSwapLiquidity() {
         console.log('');
 
         // Calculer les montants à ajouter selon le ratio réel
-        const bnbAmount = ethers.parseEther("0.00002"); // 0.00002 BNB
-        const cvtcAmount = ethers.parseUnits("2500000000", 2); // 2,500,000,000 CVTC
+        const bnbAmount = ethers.parseEther("0.00001"); // 0.00001 BNB
+        const cvtcAmount = ethers.parseUnits("1000000", 2); // 1,000,000 CVTC
 
         console.log(`📥 Montants à ajouter (ratio réel):`);
         console.log(`   BNB: ${ethers.formatEther(bnbAmount)} BNB`);

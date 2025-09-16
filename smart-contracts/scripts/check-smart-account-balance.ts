@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
   console.log("💰 Vérification du solde CVTC dans le Smart Account...");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Adresses
   const cvtcTokenAddress = "0x532FC49071656C16311F2f89E6e41C53243355D3";

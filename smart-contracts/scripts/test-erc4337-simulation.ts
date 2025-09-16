@@ -8,7 +8,7 @@ async function main() {
   const CVTC_ADDRESS = "0x532FC49071656C16311F2f89E6e41C53243355D3";
   const ENTRY_POINT = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // ABI du paymaster
   const paymasterABI = [

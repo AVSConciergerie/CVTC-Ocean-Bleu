@@ -46,7 +46,7 @@ npm install
 # Configuration BSC Testnet
 networks: {
   bscTestnet: {
-    url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+    url: "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7",
     accounts: [process.env.PRIVATE_KEY]
   }
 }
@@ -55,7 +55,7 @@ networks: {
 ### Variables d'Environnement
 ```bash
 # .env
-BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545/
+BSC_TESTNET_RPC_URL=https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7
 PRIVATE_KEY=your_private_key_here
 CVTC_TOKEN_ADDRESS=0x532FC49071656C16311F2f89E6e41C53243355D3
 ```

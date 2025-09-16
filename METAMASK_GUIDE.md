@@ -39,7 +39,7 @@ MetaMask devrait automatiquement détecter BSC Testnet. Si ce n'est pas le cas :
 3. Remplissez :
    ```
    Nom du réseau : BSC Testnet
-   URL RPC : https://data-seed-prebsc-1-s1.binance.org:8545/
+   URL RPC : https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7
    ID de chaîne : 97
    Symbole : tBNB
    URL de l'explorateur : https://testnet.bscscan.com

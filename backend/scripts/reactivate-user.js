@@ -39,18 +39,18 @@ async function reactivateUser() {
         const balance = await provider.getBalance(operatorWallet.address);
         console.log(`💰 Solde opérateur: ${ethers.formatEther(balance)} BNB`);
 
-        if (balance < ethers.parseEther("0.5")) {
+        if (balance < ethers.parseEther("0.01")) {
             console.log('❌ Solde insuffisant pour réactiver l\'utilisateur');
-            console.log('💡 L\'opérateur doit avoir au moins 0.5 BNB');
+            console.log('💡 L\'opérateur doit avoir au moins 0.01 BNB');
             return;
         }
 
         // Créer le contrat avec le wallet de l'utilisateur (pour acceptOnboardingTerms)
-        const userWallet = new ethers.Wallet.createRandom().connect(provider);
+        const userWallet = ethers.Wallet.createRandom().connect(provider);
         // Alimenter le wallet temporaire de l'utilisateur
         const fundTx = await operatorWallet.sendTransaction({
             to: userWallet.address,
-            value: ethers.parseEther("0.1")
+            value: ethers.parseEther("0.005")
         });
         await fundTx.wait();
         console.log('✅ Wallet utilisateur temporaire créé et alimenté');

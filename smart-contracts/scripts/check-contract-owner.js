@@ -18,7 +18,7 @@ async function main() {
     "function canExecuteRelease(uint256, address) view returns (bool)"
   ];
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   try {
     const contract = new ethers.Contract(contractAddress, ownerABI, provider);

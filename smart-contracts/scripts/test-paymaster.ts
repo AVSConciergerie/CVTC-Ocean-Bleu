@@ -7,7 +7,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 // BSC Testnet configuration
-const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
+const BSC_TESTNET_RPC = "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7";
 const CVTC_TOKEN_ADDRESS = "0x532FC49071656C16311F2f89E6e41C53243355D3";
 
 // Paymaster ABI

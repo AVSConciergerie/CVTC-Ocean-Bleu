@@ -6,7 +6,7 @@ import { toSimpleSmartAccount } from 'permissionless/accounts';
 
 // 1. Create a public client to interact with the blockchain
 const publicClient = createPublicClient({
-  transport: http("https://data-seed-prebsc-1-s1.binance.org:8545/"), // Public BSC Testnet RPC
+  transport: http("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7"), // Public BSC Testnet RPC
   chain: bscTestnet,
 });
 

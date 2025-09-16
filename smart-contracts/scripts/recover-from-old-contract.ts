@@ -4,7 +4,7 @@ async function main() {
   console.log("🚨 RÉCUPÉRATION DES TOKENS DEPUIS L'ANCIEN CONTRAT");
   console.log("==================================================");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 
   // Adresses

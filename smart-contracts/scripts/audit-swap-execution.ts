@@ -34,7 +34,7 @@ async function main() {
     // 4. Vérifier les dernières transactions
     console.log(`\\n🔄 RECHERCHE TRANSACTIONS RÉCENTES...`);
 
-    const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+    const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
     const currentBlock = await provider.getBlockNumber();
     const fromBlock = currentBlock - 100; // Derniers 100 blocs
 

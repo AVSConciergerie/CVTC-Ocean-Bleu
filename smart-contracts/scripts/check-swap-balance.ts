@@ -8,7 +8,7 @@ async function main() {
   console.log("🔍 VÉRIFICATION DU SOLDE CVTC DANS LE CONTRAT SWAP");
   console.log("================================================");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Adresses
   const swapContractAddress = "0x9fD15619a90005468F02920Bb569c95759Da710C";

@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
@@ -12,8 +13,11 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
  * @notice Paymaster contract that allows users to pay for gas fees using CVTC tokens with reimbursement system
  * @dev Based on Pimlico's ERC-20 Paymaster architecture with CVTC priority reimbursement
  */
-contract CVTCPaymaster is Ownable {
+contract CVTCPaymaster is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+
+    // Emergency pause functionality
+    bool public paused = false;
 
     // EntryPoint interface
     struct UserOperation {
@@ -68,6 +72,12 @@ contract CVTCPaymaster is Ownable {
     uint256 public constant VERIFICATION_GAS = 150000;
     uint256 public constant REIMBURSEMENT_CHECK_INTERVAL = 1 hours; // Check every hour
 
+    // Modifiers
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
+        _;
+    }
+
     /**
      * @notice Constructor
      * @param _entryPoint Address of the EntryPoint contract
@@ -104,9 +114,10 @@ contract CVTCPaymaster is Ownable {
         UserOperation calldata userOp,
         bytes32 userOpHash,
         uint256 maxCost
-    ) external view returns (bytes memory context, uint256 validationData) {
+    ) external view whenNotPaused returns (bytes memory context, uint256 validationData) {
         // Only EntryPoint can call this
         require(msg.sender == entryPoint, "Paymaster: not from entryPoint");
+        require(maxCost > 0, "Paymaster: invalid maxCost");
 
         // Extract paymaster data
         require(userOp.paymasterAndData.length >= 20, "Paymaster: invalid paymasterAndData");
@@ -139,7 +150,7 @@ contract CVTCPaymaster is Ownable {
         uint8 mode,
         bytes calldata context,
         uint256 actualGasCost
-    ) external {
+    ) external whenNotPaused nonReentrant {
         // Only EntryPoint can call this
         require(msg.sender == entryPoint, "Paymaster: not from entryPoint");
 
@@ -306,29 +317,24 @@ contract CVTCPaymaster is Ownable {
      * @return tokens Array of supported token addresses
      */
     function getSupportedTokens() external view returns (address[] memory tokens) {
-        // This is a simplified implementation. In production, consider using an enumerable set.
-        // For now, return known supported tokens
-        address[] memory tempTokens = new address[](10); // Adjust size as needed
+        // Count supported tokens first
         uint256 count = 0;
+        if (supportedTokens[cvtcToken]) count++;
+        if (supportedTokens[address(0)]) count++; // BNB
 
-        // Check common tokens (this is not efficient but works for small number of tokens)
-        address[10] memory possibleTokens = [
-            cvtcToken, // CVTC is always first
-            address(0), address(0), address(0), address(0),
-            address(0), address(0), address(0), address(0), address(0)
-        ];
+        // For additional tokens, we'd need to track them in a separate array
+        // This is a simplified implementation for the main tokens
 
-        for (uint256 i = 0; i < possibleTokens.length; i++) {
-            if (possibleTokens[i] != address(0) && supportedTokens[possibleTokens[i]]) {
-                tempTokens[count] = possibleTokens[i];
-                count++;
-            }
-        }
-
-        // Copy to properly sized array
         tokens = new address[](count);
-        for (uint256 i = 0; i < count; i++) {
-            tokens[i] = tempTokens[i];
+        uint256 index = 0;
+
+        if (supportedTokens[cvtcToken]) {
+            tokens[index] = cvtcToken;
+            index++;
+        }
+        if (supportedTokens[address(0)]) {
+            tokens[index] = address(0);
+            index++;
         }
     }
 
@@ -484,6 +490,20 @@ contract CVTCPaymaster is Ownable {
         debt.lastUpdate = block.timestamp;
 
         emit DebtReimbursed(user, actualCvtcReimbursed, actualBnbReimbursed);
+    }
+
+    /**
+     * @notice Emergency pause function
+     */
+    function pause() external onlyOwner {
+        paused = true;
+    }
+
+    /**
+     * @notice Emergency unpause function
+     */
+    function unpause() external onlyOwner {
+        paused = false;
     }
 
     /**

@@ -18,7 +18,7 @@ async function main() {
 
   console.log("\n🔎 Vérification sur BSC Testnet...");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   let deployedCount = 0;
   let totalCount = 0;

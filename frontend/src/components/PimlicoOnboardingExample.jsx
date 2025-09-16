@@ -18,8 +18,8 @@ const PimlicoOnboardingExample = () => {
   const [error, setError] = useState('');
 
   // Configuration Pimlico
-  const PIMLICO_API_KEY = process.env.REACT_APP_PIMLICO_API_KEY;
-  const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
+  const PIMLICO_API_KEY = import.meta.env.VITE_PIMLICO_API_KEY;
+  const BSC_TESTNET_RPC = "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7";
 
   // Adresses des contrats déployés
   const CONTRACTS = {

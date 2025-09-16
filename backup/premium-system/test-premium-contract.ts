@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
   console.log("🧪 Test du contrat Premium directement...");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.providers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Adresses
   const premiumAddress = "0xA788393d86699cAeABBc78C6B2B5B53c84B39663";

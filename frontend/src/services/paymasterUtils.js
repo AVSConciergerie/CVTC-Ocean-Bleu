@@ -7,6 +7,7 @@ export class PaymasterUtils {
     constructor(paymasterContract, cvtcTokenAddress) {
         this.paymaster = paymasterContract;
         this.cvtcToken = cvtcTokenAddress;
+        console.log('🔧 PaymasterUtils initialisé avec token:', this.cvtcToken);
     }
 
     /**

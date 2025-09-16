@@ -87,10 +87,17 @@ export function PimlicoProvider({ children }) {
     const { wallets } = useWallets();
     const apiKey = import.meta.env.VITE_PIMLICO_API_KEY;
     console.log('🔑 Pimlico API Key present:', !!apiKey);
-    console.log('🔗 Bundler URL will be:', `https://api.pimlico.io/v2/97/rpc?apikey=${apiKey ? '***' + apiKey.slice(-4) : 'MISSING'}`);
+
+    // Utiliser l'URL BSC directe si pas d'API key Pimlico
+    const bundlerUrl = apiKey
+        ? `https://api.pimlico.io/v2/97/rpc?apikey=${apiKey}`
+        : 'https://data-seed-prebsc-1-s1.binance.org:8545/';
+
+    console.log('🔗 Bundler URL will be:', bundlerUrl);
+
     const config = {
         ...PAYMASTER_CONFIG.bscTestnet,
-        bundlerUrl: `https://api.pimlico.io/v2/97/rpc?apikey=${apiKey}`
+        bundlerUrl: bundlerUrl
     };
 
     useEffect(() => {
@@ -302,12 +309,57 @@ export function PimlicoProvider({ children }) {
                         setBundler(null);
                     }
                 } catch (safeError) {
-                    console.log('❌ Contrat détecté mais pas un Safe standard, désactivation ERC-4337');
-                    multiOwner = true;
-                    setIsMultiOwner(multiOwner);
-                    setSmartAccount(null);
-                    setAccount(null);
-                    setBundler(null);
+                    console.log('⚠️ Contrat détecté mais pas un Safe standard, utilisation Smart Account prédit');
+                    account = predictedAccount;
+                    setAccount(account);
+
+                    // Créer le Pimlico client
+                    const pimlicoClient = await import('permissionless/clients/pimlico').then(({ createPimlicoClient }) =>
+                        createPimlicoClient({
+                            transport: http(config.bundlerUrl),
+                            entryPoint: {
+                                address: config.entryPointAddress,
+                                version: "0.7",
+                            },
+                        })
+                    );
+
+                    // Créer le Smart Account Client
+                    const smartAccountClient = createSmartAccountClient({
+                        account,
+                        chain: bscTestnet,
+                        bundlerTransport: http(config.bundlerUrl),
+                        userOperation: {
+                            estimateFeesPerGas: async () => {
+                                const gasPrice = await pimlicoClient.getUserOperationGasPrice();
+                                console.log('💰 Gas prices estimés:', gasPrice.fast);
+                                return gasPrice.fast;
+                            },
+                        },
+                        middleware: {
+                            sponsorUserOperation: paymaster ? async (userOp) => {
+                                try {
+                                    const stubData = await paymaster.getPaymasterStubData(config.cvtcTokenAddress);
+                                    console.log('🔧 Paymaster data appliqué:', stubData);
+                                    return {
+                                        ...userOp,
+                                        paymaster: config.paymasterAddress,
+                                        paymasterData: stubData,
+                                        paymasterVerificationGasLimit: 150000n,
+                                        paymasterPostOpGasLimit: 35000n
+                                    };
+                                } catch (err) {
+                                    console.error('Erreur paymaster middleware:', err);
+                                    return userOp;
+                                }
+                            } : undefined
+                        }
+                    });
+
+                    console.log('✅ Smart Account Client pour contrat non-Safe créé');
+                    setSmartAccount(smartAccountClient);
+                    setBundler(pimlicoClient);
+                    setIsMultiOwner(false);
                 }
             } else {
                 // Pour EOA, créer le smart account ERC-4337
@@ -364,55 +416,55 @@ export function PimlicoProvider({ children }) {
 
             }
 
-            // Équilibrage automatique : transférer 50% des CVTC du wallet vers le Smart Account
-            try {
-                console.log('🔄 Vérification solde wallet pour équilibrage vers Smart Account...');
-                const walletBalance = await publicClient.readContract({
-                    address: CVTC_TOKEN_ADDRESS,
-                    abi: CVTC_TOKEN_ABI,
-                    functionName: 'balanceOf',
-                    args: [user.wallet.address],
-                });
+            // Équilibrage automatique désactivé
+            // try {
+            //     console.log('🔄 Vérification solde wallet pour équilibrage vers Smart Account...');
+            //     const walletBalance = await publicClient.readContract({
+            //         address: CVTC_TOKEN_ADDRESS,
+            //         abi: CVTC_TOKEN_ABI,
+            //         functionName: 'balanceOf',
+            //         args: [user.wallet.address],
+            //     });
 
-                const walletBalanceFormatted = formatUnits(walletBalance, 2);
-                console.log(`💰 Solde wallet: ${walletBalanceFormatted} CVTC`);
+            //     const walletBalanceFormatted = formatUnits(walletBalance, 2);
+            //     console.log(`💰 Solde wallet: ${walletBalanceFormatted} CVTC`);
 
-                if (walletBalance > 0n) {
-                    // Transférer 50% des CVTC vers le Smart Account
-                    const transferAmount = walletBalance / 2n;
-                    console.log(`🔄 Transfert automatique de ${formatUnits(transferAmount, 2)} CVTC vers le Smart Account...`);
+            //     if (walletBalance > 0n) {
+            //         // Transférer tous les CVTC vers le Smart Account
+            //                              // const transferAmount = walletBalance;
+            //         console.log(`🔄 Transfert automatique de ${formatUnits(transferAmount, 2)} CVTC vers le Smart Account...`);
 
-                    if (!wallets || wallets.length === 0) {
-                        console.warn('⚠️ Wallets non disponibles pour le transfert automatique');
-                    } else {
-                        const ethereumProvider = await wallets[0].getEthereumProvider();
-                        const walletClient = createWalletClient({
-                            chain: bscTestnet,
-                            transport: custom(ethereumProvider),
-                        });
+            //         if (!wallets || wallets.length === 0) {
+            //             console.warn('⚠️ Wallets non disponibles pour le transfert automatique');
+            //         } else {
+            //             const ethereumProvider = await wallets[0].getEthereumProvider();
+            //             const walletClient = createWalletClient({
+            //                 chain: bscTestnet,
+            //                 transport: custom(ethereumProvider),
+            //             });
 
-                        const [userAddress] = await walletClient.getAddresses();
+            //             const [userAddress] = await walletClient.getAddresses();
 
-                        const tx = await walletClient.sendTransaction({
-                            account: userAddress,
-                            to: CVTC_TOKEN_ADDRESS,
-                            data: encodeFunctionData({
-                                abi: CVTC_TOKEN_ABI,
-                                functionName: 'transfer',
-                                args: [smartAccountAddress, transferAmount],
-                            }),
-                        });
+            //             const tx = await walletClient.sendTransaction({
+            //                 account: userAddress,
+            //                 to: CVTC_TOKEN_ADDRESS,
+            //                 data: encodeFunctionData({
+            //                     abi: CVTC_TOKEN_ABI,
+            //                     functionName: 'transfer',
+            //                     args: [smartAccountAddress, transferAmount],
+            //                 }),
+            //             });
 
-                        console.log('✅ Transfert automatique réussi:', tx);
-                        console.log(`💰 ${formatUnits(transferAmount, 2)} CVTC transférés vers le Smart Account`);
-                    }
-                } else {
-                    console.log('ℹ️ Aucun CVTC dans le wallet, pas de transfert nécessaire');
-                }
-            } catch (transferError) {
-                console.warn('⚠️ Erreur lors du transfert automatique:', transferError.message);
-                // Ne pas échouer l'initialisation pour ça
-            }
+            //             console.log('✅ Transfert automatique réussi:', tx);
+            //             console.log(`💰 ${formatUnits(transferAmount, 2)} CVTC transférés vers le Smart Account`);
+            //         }
+            //     } else {
+            //         console.log('ℹ️ Aucun CVTC dans le wallet, pas de transfert nécessaire');
+            //     }
+            // } catch (transferError) {
+            //     console.warn('⚠️ Erreur lors du transfert automatique:', transferError.message);
+            //     // Ne pas échouer l'initialisation pour ça
+            // }
 
             console.log('✅ Smart Account initialisé:', account.address);
             console.log('🔗 Wallet Address:', user.wallet.address);

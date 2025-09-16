@@ -8,7 +8,7 @@ async function main() {
   console.log("💰 FONDATION DU PAYMASTER");
   console.log("========================");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
   const privateKey = process.env.PRIVATE_KEY;
   console.log("🔍 Chargement de la clé privée...");
   console.log("PRIVATE_KEY exists:", !!privateKey);

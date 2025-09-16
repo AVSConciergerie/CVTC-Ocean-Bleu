@@ -4,7 +4,7 @@ async function main() {
   console.log("🔍 VÉRIFICATION DU SOLDE DU CONTRAT");
   console.log("====================================");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Adresses
   const contractAddress = "0x87bC38879D9786BD7Fd03737DaA52d3d0a7785FB";

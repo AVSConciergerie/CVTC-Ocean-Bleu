@@ -23,7 +23,7 @@ async function main() {
       throw new Error("PRIVATE_KEY non trouvée dans .env");
     }
 
-    const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+    const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
     const wallet = new ethers.Wallet(privateKey, provider);
 
     console.log(`🎭 Wallet utilisé: ${wallet.address}`);

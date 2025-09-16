@@ -36,8 +36,70 @@
         "createdAt": "2025-09-13T21:09:47.004Z",
         "status": "failed",
         "failedAt": "2025-09-13T21:09:52.422Z"
+      },
+      {
+        "id": 1757882727981.9434,
+        "type": "daily_swap",
+        "data": {
+          "reason": "test_force_1"
+        },
+        "createdAt": "2025-09-14T20:45:27.981Z",
+        "status": "failed",
+        "failedAt": "2025-09-14T20:45:30.421Z"
+      },
+      {
+        "id": 1757882727990.1687,
+        "type": "p2p_transfer",
+        "data": {
+          "recipient": "0x1234567890123456789012345678901234567890",
+          "amount": "50"
+        },
+        "createdAt": "2025-09-14T20:45:27.990Z",
+        "status": "completed",
+        "completedAt": "2025-09-14T20:45:30.422Z"
+      },
+      {
+        "id": 1757882730424.2632,
+        "type": "daily_swap",
+        "data": {
+          "reason": "single_execution_test"
+        },
+        "createdAt": "2025-09-14T20:45:30.424Z",
+        "status": "failed",
+        "failedAt": "2025-09-14T20:45:30.865Z"
+      },
+      {
+        "id": 1757882823470.6362,
+        "type": "daily_swap",
+        "data": {
+          "reason": "test_force_1"
+        },
+        "createdAt": "2025-09-14T20:47:03.470Z",
+        "status": "failed",
+        "failedAt": "2025-09-14T20:47:06.089Z"
+      },
+      {
+        "id": 1757882823481.9917,
+        "type": "p2p_transfer",
+        "data": {
+          "recipient": "0x1234567890123456789012345678901234567890",
+          "amount": "50"
+        },
+        "createdAt": "2025-09-14T20:47:03.481Z",
+        "status": "completed",
+        "completedAt": "2025-09-14T20:47:06.089Z"
+      },
+      {
+        "id": 1757882826104,
+        "type": "daily_swap",
+        "data": {
+          "reason": "single_execution_test"
+        },
+        "createdAt": "2025-09-14T20:47:06.103Z",
+        "status": "failed",
+        "failedAt": "2025-09-14T20:47:06.570Z"
       }
     ]
   },
-  "lastUpdated": "2025-09-13T21:09:52.422Z"
+  "lastUpdated": "2025-09-14T20:47:06.570Z"
 }

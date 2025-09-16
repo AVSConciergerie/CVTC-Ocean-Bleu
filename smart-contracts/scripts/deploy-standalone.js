@@ -6,7 +6,7 @@ async function main() {
   console.log('='.repeat(60));
 
   // Configuration
-  const provider = new ethers.JsonRpcProvider(process.env.BSC_RPC_URL || 'https://data-seed-prebsc-1-s1.binance.org:8545/');
+  const provider = new ethers.JsonRpcProvider(process.env.BSC_RPC_URL || 'https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7');
   const privateKey = process.env.PRIVATE_KEY;
 
   if (!privateKey) {

@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
   console.log("🔧 Debug de l'erreur 'Adresse deleguee invalide'...");
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Adresses
   const transferContractAddress = "0xAEfFf843E171A6f022F0D06Bfd85998275a8D2D6";

@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // BSC Testnet configuration
-const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
+const BSC_TESTNET_RPC = "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7";
 const BSC_TESTNET_CHAIN_ID = 97;
 
 // Paymaster ABI for integration

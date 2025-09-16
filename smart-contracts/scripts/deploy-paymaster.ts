@@ -8,7 +8,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 // BSC Testnet configuration
-const BSC_TESTNET_RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
+const BSC_TESTNET_RPC = "https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7";
 const BSC_TESTNET_CHAIN_ID = 97;
 
 // Contract addresses
@@ -51,7 +51,7 @@ async function main() {
         process.env.DEPLOYER_ADDRESS = signer.address;
 
         // Run deployment script
-        const deployCommand = "cd /Users/utilisateur/Documents/GitHub/CVTC-Ocean-Bleu/smart-contracts && forge script script/DeployPaymaster.s.sol --rpc-url https://data-seed-prebsc-1-s1.binance.org:8545/ --private-key $PRIVATE_KEY --broadcast --verify";
+        const deployCommand = "cd /Users/utilisateur/Documents/GitHub/CVTC-Ocean-Bleu/smart-contracts && forge script script/DeployPaymaster.s.sol --rpc-url https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7 --private-key $PRIVATE_KEY --broadcast --verify";
 
         console.log("Exécution:", deployCommand);
 

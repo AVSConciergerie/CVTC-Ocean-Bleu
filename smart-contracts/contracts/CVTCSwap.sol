@@ -3,13 +3,15 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract CVTCSwap is Ownable {
+contract CVTCSwap is Ownable, ReentrancyGuard {
     IERC20 public cvtcToken;
     uint256 public bnbReserve;
     uint256 public cvtcReserve;
     uint256 public constant FEE = 3; // 0.3% fee
     bool public liquidityEnabled = true;
+    bool public paused = false;
     mapping(address => bool) public whitelisted;
     mapping(address => bool) public ownerBots; // Bots reconnus du owner
 
@@ -31,6 +33,20 @@ contract CVTCSwap is Ownable {
     // Toggle pour activer/désactiver la liquidité (seul owner)
     function toggleLiquidity() external onlyOwner {
         liquidityEnabled = !liquidityEnabled;
+    }
+
+    // Emergency pause/unpause functions
+    function pause() external onlyOwner {
+        paused = true;
+    }
+
+    function unpause() external onlyOwner {
+        paused = false;
+    }
+
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
+        _;
     }
 
     // Ajouter/retirer de la whitelist (seul owner)
@@ -73,7 +89,7 @@ contract CVTCSwap is Ownable {
     }
 
     // Ajout de liquidité par le propriétaire (AMM classique)
-    function addLiquidity(uint256 cvtcAmount) external payable onlyOwner {
+    function addLiquidity(uint256 cvtcAmount) external payable onlyOwner whenNotPaused {
         require(liquidityEnabled, "Liquidite desactivee");
         require(msg.value > 0 && cvtcAmount > 0, "Montants non valides");
 
@@ -178,9 +194,10 @@ contract CVTCSwap is Ownable {
     }
 
     // Acheter CVTC avec BNB (AMM avec slippage)
-    function buy(uint256 minCvtcOut) external payable {
+    function buy(uint256 minCvtcOut) external payable whenNotPaused nonReentrant {
         require(whitelisted[msg.sender] || ownerBots[msg.sender] || msg.sender == owner(), "Non autorise");
         require(msg.value > 0, "Pas de BNB envoye");
+        require(minCvtcOut > 0, "Montant minimum de sortie invalide");
         require(bnbReserve > 0 && cvtcReserve > 0, "Liquidite non initialisee");
 
         uint256 amountInWithFee = msg.value * (1000 - FEE);
@@ -223,9 +240,10 @@ contract CVTCSwap is Ownable {
     }
 
     // Vendre CVTC contre BNB (AMM avec slippage)
-    function sell(uint256 cvtcAmount, uint256 minBnbOut) external {
+    function sell(uint256 cvtcAmount, uint256 minBnbOut) external whenNotPaused nonReentrant {
         require(whitelisted[msg.sender] || ownerBots[msg.sender] || msg.sender == owner(), "Non autorise");
         require(cvtcAmount > 0, "Montant CVTC nul");
+        require(minBnbOut > 0, "Montant minimum de sortie invalide");
         require(bnbReserve > 0 && cvtcReserve > 0, "Liquidite non initialisee");
 
         uint256 amountInWithFee = cvtcAmount * (1000 - FEE);

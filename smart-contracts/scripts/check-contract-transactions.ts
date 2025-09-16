@@ -12,7 +12,7 @@ async function main() {
   console.log("");
 
   // Connexion au provider BSC Testnet
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   console.log("📋 RECHERCHE DES TRANSACTIONS CVTC DU CONTRAT :");
   console.log("-" .repeat(50));

@@ -36,6 +36,8 @@ createRoot(document.getElementById('root')).render(
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
         },
+        // Désactiver la CSP restrictive de Privy pour permettre GTM
+        disableCSP: true,
       }}
     >
       <BrowserRouter>

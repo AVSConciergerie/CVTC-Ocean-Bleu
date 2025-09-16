@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 async function main() {
   console.log("🔧 Configuration des accès pour le CVTCCompounder...");
 
-  const provider = new ethers.providers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.providers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   // Adresses des contrats
   const swapAddress = "0xab6C658f36697325c3E7FE5c81d12d73f6A341C6";

@@ -7,7 +7,7 @@ async function main() {
   // Hash de la transaction prétendument exécutée
   const TX_HASH = "0x68facac2e5948de461dece927ed793807cf802b2d5e37bcd35c3d4f5e8c28d31";
 
-  const provider = new ethers.JsonRpcProvider("https://data-seed-prebsc-1-s1.binance.org:8545/");
+  const provider = new ethers.JsonRpcProvider("https://api.pimlico.io/v2/97/rpc?apikey=pim_32ESGpGsTSAn7VVUj7Frd7");
 
   try {
     console.log(`🔗 Vérification transaction: ${TX_HASH}`);

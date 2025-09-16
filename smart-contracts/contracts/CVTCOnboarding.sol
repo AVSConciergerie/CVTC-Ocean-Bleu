@@ -22,6 +22,25 @@ interface ICVTCSwap {
 }
 
 contract CVTCOnboarding is Ownable, ReentrancyGuard {
+    // Emergency pause functionality
+    bool public paused = false;
+
+    // Custom errors
+    error ContractPaused();
+    error CircuitBreakerActive();
+    error InvalidUserAddress();
+    error UserAlreadyActive();
+    error UserAlreadyCompleted();
+    error InsufficientContractBalance();
+    error MaxUsersReached();
+    error UserNotActive();
+    error OnboardingAlreadyCompleted();
+    error TooEarlyForSwap();
+    error OnboardingPeriodEnded();
+    error InvalidSwapAmount();
+    error TransferFailed();
+    error NotAuthorized();
+
     // Interfaces pour les contrats externes
     IERC20 public cvtcToken;
 
@@ -46,6 +65,22 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
     // Configuration du recyclage
     uint256 public constant RECYCLE_FIXED = 0.05 ether; // 0,05€ fixe
     uint256 public constant RECYCLE_PERCENTAGE = 5; // 0,5%
+
+    // Circuit breakers
+    uint256 public maxUsers = 10000; // Maximum users allowed
+    uint256 public maxDailySwaps = 1000; // Maximum daily swaps
+    uint256 public minContractBalance = 1 ether; // Minimum balance to maintain
+    bool public circuitBreakerActive = false;
+
+    // Rate limiting
+    uint256 public maxDailyOnboardings = 100; // Maximum onboardings per day
+    mapping(uint256 => uint256) public dailyOnboardings; // day => count
+
+    // Multi-signature for critical operations
+    address[] public emergencyApprovers;
+    mapping(address => bool) public isEmergencyApprover;
+    mapping(bytes32 => mapping(address => bool)) public emergencyApprovals; // operationHash => approver => approved
+    uint256 public requiredApprovals = 2; // Number of approvals needed for emergency operations
 
     // Compteurs et statistiques
     uint256 public totalUsers;
@@ -80,6 +115,10 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
     event RepaymentProcessed(address indexed user, uint8 palier, uint256 amount);
     event OnboardingCompleted(address indexed user, uint256 totalCvtcKept);
     event FundsRecycled(uint256 amount, uint256 reason);
+    event CircuitBreakerActivated(bool active);
+    event EmergencyPaused(address indexed by);
+    event EmergencyUnpaused(address indexed by);
+    event RateLimitExceeded(address indexed user, uint256 day, uint256 count);
 
     // Modifiers
     modifier onlyAuthorized() {
@@ -90,6 +129,11 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
     modifier onlyActiveUser() {
         require(onboardingUsers[msg.sender].isActive, "User not active");
         require(!onboardingUsers[msg.sender].completed, "Onboarding completed");
+        _;
+    }
+
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
         _;
     }
 
@@ -108,9 +152,18 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
      * @notice Fonction principale d'acceptation des CGU et démarrage de l'onboarding
      * @dev Un seul clic pour tout déclencher
      */
-    function acceptOnboardingTerms() external nonReentrant {
-        require(!onboardingUsers[msg.sender].isActive, "Already active");
-        require(!onboardingUsers[msg.sender].completed, "Already completed");
+    function acceptOnboardingTerms() external nonReentrant whenNotPaused {
+        if (circuitBreakerActive) revert CircuitBreakerActive();
+        if (msg.sender == address(0)) revert InvalidUserAddress();
+        if (onboardingUsers[msg.sender].isActive) revert UserAlreadyActive();
+        if (onboardingUsers[msg.sender].completed) revert UserAlreadyCompleted();
+        if (totalUsers >= maxUsers) revert MaxUsersReached();
+        if (address(this).balance < INITIAL_LOAN + minContractBalance) revert InsufficientContractBalance();
+
+        // Rate limiting: check daily onboarding limit
+        uint256 today = block.timestamp / 1 days;
+        if (dailyOnboardings[today] >= maxDailyOnboardings) revert("Daily onboarding limit reached");
+        dailyOnboardings[today]++;
 
         // Créer le profil utilisateur
         OnboardingUser storage user = onboardingUsers[msg.sender];
@@ -129,7 +182,8 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
 
         // Verser le prêt initial (cette fonction doit être appelée par le paymaster)
         // Le paymaster appellera cette fonction et versera les fonds
-        payable(msg.sender).transfer(INITIAL_LOAN);
+        (bool success,) = payable(msg.sender).call{value: INITIAL_LOAN}("");
+        if (!success) revert TransferFailed();
 
         emit OnboardingStarted(msg.sender, INITIAL_LOAN, block.timestamp);
     }
@@ -139,15 +193,16 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
      * @dev Appelée par le backend/oracle chaque jour
      * @param user Adresse de l'utilisateur
      */
-    function executeDailySwap(address user) external onlyAuthorized nonReentrant {
+    function executeDailySwap(address user) external onlyAuthorized nonReentrant whenNotPaused {
+        if (user == address(0)) revert InvalidUserAddress();
         OnboardingUser storage userData = onboardingUsers[user];
-        require(userData.isActive, "User not active");
-        require(!userData.completed, "Onboarding completed");
-        require(block.timestamp >= userData.lastSwapDate + 1 days, "Too early for next swap");
-        require(block.timestamp <= userData.startDate + ONBOARDING_DURATION, "Onboarding period ended");
+        if (!userData.isActive) revert UserNotActive();
+        if (userData.completed) revert OnboardingAlreadyCompleted();
+        if (block.timestamp < userData.lastSwapDate + 1 days) revert TooEarlyForSwap();
+        if (block.timestamp > userData.startDate + ONBOARDING_DURATION) revert OnboardingPeriodEnded();
 
         // Vérifier que l'utilisateur a suffisamment de BNB
-        require(address(this).balance >= DAILY_SWAP_AMOUNT, "Insufficient contract balance");
+        if (address(this).balance < DAILY_SWAP_AMOUNT) revert InsufficientContractBalance();
 
         // Effectuer le swap BNB → CVTC via le pool
         // Cette fonction devra être intégrée avec CVTCSwap.sol
@@ -193,10 +248,10 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
         cvtcReceived = cvtcBalanceAfter - cvtcBalanceBefore;
 
         // Vérifier que nous avons reçu au moins le minimum attendu
-        require(cvtcReceived >= minCvtcOut, "Insufficient CVTC received from swap");
+        if (cvtcReceived < minCvtcOut) revert InvalidSwapAmount();
 
         // Transférer les CVTC à l'utilisateur
-        require(cvtcToken.transfer(user, cvtcReceived), "CVTC transfer to user failed");
+        if (!cvtcToken.transfer(user, cvtcReceived)) revert TransferFailed();
 
         return cvtcReceived;
     }
@@ -300,7 +355,7 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
         uint256 daysRemaining,
         uint256 cvtcAccumulated,
         uint8 currentPalier,
-        uint256 totalRepaid
+        uint256 userTotalRepaid
     ) {
         OnboardingUser memory userData = onboardingUsers[user];
 
@@ -361,6 +416,102 @@ contract CVTCOnboarding is Ownable, ReentrancyGuard {
         require(userData.isActive, "User not active");
 
         _completeOnboarding(user);
+    }
+
+    /**
+     * @notice Emergency pause function
+     */
+    function pause() external onlyOwner {
+        paused = true;
+        emit EmergencyPaused(msg.sender);
+    }
+
+    /**
+     * @notice Emergency unpause function
+     */
+    function unpause() external onlyOwner {
+        paused = false;
+        emit EmergencyUnpaused(msg.sender);
+    }
+
+    /**
+     * @notice Circuit breaker activation/deactivation
+     */
+    function setCircuitBreaker(bool active) external onlyOwner {
+        circuitBreakerActive = active;
+        emit CircuitBreakerActivated(active);
+    }
+
+    /**
+     * @notice Update maximum users limit
+     */
+    function setMaxUsers(uint256 _maxUsers) external onlyOwner {
+        require(_maxUsers > 0, "Invalid max users");
+        maxUsers = _maxUsers;
+    }
+
+    /**
+     * @notice Update maximum daily swaps limit
+     */
+    function setMaxDailySwaps(uint256 _maxDailySwaps) external onlyOwner {
+        require(_maxDailySwaps > 0, "Invalid max daily swaps");
+        maxDailySwaps = _maxDailySwaps;
+    }
+
+    /**
+     * @notice Update minimum contract balance
+     */
+    function setMinContractBalance(uint256 _minBalance) external onlyOwner {
+        minContractBalance = _minBalance;
+    }
+
+    /**
+     * @notice Add emergency approver
+     */
+    function addEmergencyApprover(address approver) external onlyOwner {
+        if (!isEmergencyApprover[approver]) {
+            isEmergencyApprover[approver] = true;
+            emergencyApprovers.push(approver);
+        }
+    }
+
+    /**
+     * @notice Remove emergency approver
+     */
+    function removeEmergencyApprover(address approver) external onlyOwner {
+        if (isEmergencyApprover[approver]) {
+            isEmergencyApprover[approver] = false;
+            // Note: We don't remove from array to keep indices stable
+        }
+    }
+
+    /**
+     * @notice Set required approvals for emergency operations
+     */
+    function setRequiredApprovals(uint256 _required) external onlyOwner {
+        require(_required > 0 && _required <= emergencyApprovers.length, "Invalid required approvals");
+        requiredApprovals = _required;
+    }
+
+    /**
+     * @notice Approve emergency operation
+     */
+    function approveEmergencyOperation(bytes32 operationHash) external {
+        require(isEmergencyApprover[msg.sender], "Not an emergency approver");
+        emergencyApprovals[operationHash][msg.sender] = true;
+    }
+
+    /**
+     * @notice Check if emergency operation has enough approvals
+     */
+    function hasEnoughApprovals(bytes32 operationHash) public view returns (bool) {
+        uint256 approvalCount = 0;
+        for (uint256 i = 0; i < emergencyApprovers.length; i++) {
+            if (emergencyApprovals[operationHash][emergencyApprovers[i]]) {
+                approvalCount++;
+            }
+        }
+        return approvalCount >= requiredApprovals;
     }
 
     /**

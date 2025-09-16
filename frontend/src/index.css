@@ -1,21 +1,5 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg-primary: var(--color-bg);
-  --color-text-primary: var(--color-text-primary);
-  --color-text-secondary: var(--color-text-secondary);
-  --color-accent: var(--color-accent);
-  --color-accent-alt: var(--color-accent-alt);
-  --color-card-bg: var(--color-card-bg);
-  --color-card-border: var(--color-card-border);
-  --color-sidebar-bg: var(--color-sidebar-bg);
-  --color-button-primary-bg: var(--color-button-primary-bg);
-  --color-button-primary-text: var(--color-button-primary-text);
-  --color-heading: var(--color-text-heading);
-  --color-link-active: var(--color-link-active);
-  --color-link-hover-bg: var(--color-link-hover-bg);
-}
-
 /* === CVTC: Ocean Bleu - Design System Global === */
 
 /* --- 1. Définition des Thèmes --- */
